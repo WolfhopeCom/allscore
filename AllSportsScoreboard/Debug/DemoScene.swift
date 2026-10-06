@@ -5,16 +5,19 @@ import UIKit
 /// Real game states for App Store screenshots, opened with a launch argument such as
 /// `-screenshot basketball`. Debug builds only; never part of the App Store build.
 enum DemoScene: String, CaseIterable {
-    case home, basketball, fullScreen, pickleball, bucketGolf, final, soccer
+    case home, basketball, fullScreen, pickleball, bucketGolf, final, soccer, settings
 
     static var current: DemoScene? {
         UserDefaults.standard.string(forKey: "screenshot").flatMap(DemoScene.init(rawValue:))
     }
 
-    /// The scoreboard is designed landscape-first, so every shot is landscape.
-    static func rotateToLandscape() {
+    /// The scoreboard is designed landscape-first. The sports grid and Settings are long
+    /// lists, so they're shot in portrait.
+    var isLandscape: Bool { self != .settings && self != .home }
+
+    func applyOrientation() {
         guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else { return }
-        scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight))
+        scene.requestGeometryUpdate(.iOS(interfaceOrientations: isLandscape ? .landscapeRight : .portrait))
     }
 
     static func basketball(period: Int = 3, scores: [Int] = [48, 45], remaining: TimeInterval = 42.7) -> GameState {

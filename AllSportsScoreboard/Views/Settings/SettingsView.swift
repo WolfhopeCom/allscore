@@ -8,8 +8,6 @@ struct SettingsView: View {
         @Bindable var settings = settings
 
         Form {
-            AdsSection()
-
             Section {
                 Toggle("Sound Effects", isOn: $settings.soundEnabled)
                 if settings.soundEnabled {
@@ -66,6 +64,8 @@ struct SettingsView: View {
                 Text(settings.appearance.detail + ". The screen stays on while a scoreboard is open, then returns to normal.")
             }
             .listRowBackground(theme.panel)
+
+            AdsSection()
 
             Section {
                 Picker("Default Sport", selection: $settings.defaultSport) {

@@ -21,6 +21,7 @@ struct RootView: View {
     @State private var pending: PendingGame?
     @State private var replacement: PendingGame?
     @State private var opensFullScreen = false
+    @State private var showsDemoSettings = false
 
     var body: some View {
         NavigationStack {
@@ -47,6 +48,7 @@ struct RootView: View {
                     if playerSession != nil { isPlayerBoardPresented = true } else { isScoreboardPresented = true }
                 }
             )
+            .navigationDestination(isPresented: $showsDemoSettings) { SettingsView() }
         }
         .sheet(item: $setupSport, onDismiss: launchPendingGame) { sport in
             GameSetupView(initialConfig: settings.gameDefaults(for: sport)) { config in
@@ -124,10 +126,12 @@ struct RootView: View {
 
     #if DEBUG
     private func openDemo(_ scene: DemoScene) {
-        DemoScene.rotateToLandscape()
+        scene.applyOrientation()
         switch scene {
+        case .settings:
+            showsDemoSettings = true
         case .home:
-            session = GameSession(state: DemoScene.basketball())
+            break
         case .basketball:
             session = GameSession(state: DemoScene.basketball())
             isScoreboardPresented = true

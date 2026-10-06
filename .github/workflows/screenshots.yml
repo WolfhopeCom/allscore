@@ -48,7 +48,7 @@ jobs:
             --cellularMode active --cellularBars 4 --wifiBars 3 --dataNetwork wifi
           xcrun simctl install "$UDID" "$APP"
           mkdir -p shots
-          for SCENE in basketball home pickleball fullScreen bucketGolf final soccer; do
+          for SCENE in basketball home settings pickleball fullScreen bucketGolf final soccer; do
             xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
             xcrun simctl launch "$UDID" "$BUNDLE" -screenshot "$SCENE"
             sleep 8
