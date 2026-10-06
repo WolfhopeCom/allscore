@@ -21,10 +21,13 @@ struct RootView: View {
     @State private var pending: PendingGame?
     @State private var replacement: PendingGame?
     @State private var opensFullScreen = false
-    @State private var showsDemoSettings = false
+    @State private var showsSettingsAsRoot = false
 
     var body: some View {
         NavigationStack {
+            if showsSettingsAsRoot {
+                SettingsView()
+            } else {
             HomeView(
                 session: session,
                 playerSession: playerSession,
@@ -48,7 +51,7 @@ struct RootView: View {
                     if playerSession != nil { isPlayerBoardPresented = true } else { isScoreboardPresented = true }
                 }
             )
-            .navigationDestination(isPresented: $showsDemoSettings) { SettingsView() }
+            }
         }
         .sheet(item: $setupSport, onDismiss: launchPendingGame) { sport in
             GameSetupView(initialConfig: settings.gameDefaults(for: sport)) { config in
@@ -129,10 +132,7 @@ struct RootView: View {
         scene.applyOrientation()
         switch scene {
         case .settings:
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1))
-                showsDemoSettings = true
-            }
+            showsSettingsAsRoot = true
         case .home:
             break
         case .basketball:

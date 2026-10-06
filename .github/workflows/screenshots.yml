@@ -51,12 +51,19 @@ jobs:
           for SCENE in basketball home settings pickleball fullScreen bucketGolf final soccer; do
             xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
             xcrun simctl launch "$UDID" "$BUNDLE" -screenshot "$SCENE"
-            sleep 8
+            sleep 10
             xcrun simctl io "$UDID" screenshot "shots/$SCENE.png"
             # simctl captures the portrait framebuffer; turn landscape scenes the right way up.
             case "$SCENE" in home|settings) ;; *) sips -r 270 "shots/$SCENE.png" > /dev/null ;; esac
             sips -g pixelWidth -g pixelHeight "shots/$SCENE.png" | tail -2
           done
+
+      - name: Collect crash reports
+        if: always()
+        run: |
+          mkdir -p shots
+          find ~/Library/Logs/DiagnosticReports -name "AllSportsScoreboard*" -newer build -exec cp {} shots/ \; 2>/dev/null || true
+          ls shots
 
       - name: Commit to the screenshots branch
         run: |
@@ -65,7 +72,7 @@ jobs:
           mv shots /tmp/shots
           git checkout --orphan screenshots
           git rm -rf . > /dev/null
-          cp /tmp/shots/*.png .
-          git add *.png
+          cp /tmp/shots/* .
+          git add -A
           git commit -m "Screenshots from ${GITHUB_SHA::7}"
           git push -f origin screenshots
