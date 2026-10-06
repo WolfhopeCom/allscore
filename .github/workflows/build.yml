@@ -9,7 +9,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Use the newest Xcode on the runner
         run: |
@@ -25,7 +25,10 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log
       - name: List compile errors
         if: failure()
-        run: grep -E "error:" build.log | sort -u | head -200 || true
+        run: python3 .github/annotate.py build.log 0
+      - name: List more compile errors
+        if: failure()
+        run: python3 .github/annotate.py build.log 30
 
       - name: Test
         run: |
@@ -36,4 +39,4 @@ jobs:
             -destination "id=$UDID" CODE_SIGNING_ALLOWED=NO test 2>&1 | tee test.log
       - name: List test failures
         if: failure()
-        run: grep -E "error:|failed|Failing tests" test.log | sort -u | head -200 || true
+        run: python3 .github/annotate.py test.log 0
