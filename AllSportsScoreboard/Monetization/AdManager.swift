@@ -93,7 +93,7 @@ final class AdManager {
         guard ConsentInformation.shared.canRequestAds, !isReady else { return }
         let ads = MobileAds.shared
         // The scoreboard owns the audio session (buzzers play in silent mode); keep the SDK out of it.
-        ads.audioVideoManager.audioSessionIsApplicationManaged = true
+        ads.audioVideoManager.isAudioSessionApplicationManaged = true
         // Scoreboards get used at youth games: keep ad content family friendly.
         ads.requestConfiguration.maxAdContentRating = .parentalGuidance
         ads.start { [weak self] _ in
