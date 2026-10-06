@@ -23,10 +23,11 @@ struct SettingsView: View {
                     .accessibilityLabel("Volume")
                     Toggle("Play in Silent Mode", isOn: $settings.playInSilentMode)
                 }
+                Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
             } header: {
-                Text("Sound")
+                Text("Sound & Haptics")
             } footer: {
-                Text("When Play in Silent Mode is on, sounds play even with your ringer switched off, which is what you want courtside.")
+                Text("Play in Silent Mode lets sounds play with your ringer switched off, which is what you want courtside.")
             }
             .listRowBackground(theme.panel)
 
@@ -45,19 +46,12 @@ struct SettingsView: View {
             .listRowBackground(theme.panel)
 
             Section {
-                Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
-            } header: {
-                Text("Haptics")
-            }
-            .listRowBackground(theme.panel)
-
-            Section {
-                Toggle("Keep Screen Awake", isOn: $settings.keepScreenAwake)
                 Picker("Appearance", selection: $settings.appearance) {
                     ForEach(AppAppearance.allCases) { appearance in
                         Text(appearance.displayName).tag(appearance)
                     }
                 }
+                Toggle("Keep Screen Awake", isOn: $settings.keepScreenAwake)
             } header: {
                 Text("Scoreboard")
             } footer: {

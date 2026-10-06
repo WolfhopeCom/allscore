@@ -1,7 +1,7 @@
 name: App Store screenshots
 
-# Runs when a commit message contains [screenshots]. Captures every demo scene on the
-# 6.9-inch iPhone simulator and commits the PNGs to the `screenshots` branch.
+# Runs when a commit message contains [screenshots]. Captures the App Store set on the
+# 6.9-inch iPhone and 13-inch iPad simulators and commits the PNGs to the `screenshots` branch.
 on:
   push:
     branches: [main]
@@ -13,7 +13,7 @@ jobs:
   capture:
     if: contains(github.event.head_commit.message, '[screenshots]')
     runs-on: macos-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v5
 
@@ -22,41 +22,54 @@ jobs:
           XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
           sudo xcode-select -s "$XCODE"
 
-      - name: Pick the largest iPhone simulator
+      - name: Pick simulators
         run: |
-          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          pick() {
+            xcrun simctl list devices available -j | python3 -c "
           import json,sys
           d=json.load(sys.stdin)['devices']
-          c=[(k,x) for k,v in d.items() if 'iOS' in k for x in v if 'Pro Max' in x['name']]
+          c=[(k,x) for k,v in d.items() if 'iOS' in k for x in v if '$1' in x['name']]
           c.sort(key=lambda kx: [int(p) for p in kx[0].split('iOS-')[-1].split('-')])
-          k,x=c[-1]; print(x['udid']); print(x['name'], k, file=sys.stderr)")
-          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          k,x=c[-1]; print(x['udid']); print(x['name'], k, file=sys.stderr)"
+          }
+          echo "IPHONE=$(pick 'Pro Max')" >> "$GITHUB_ENV"
+          echo "IPAD=$(pick 'iPad Pro 13')" >> "$GITHUB_ENV"
 
       - name: Build
         run: |
           set -o pipefail
           xcodebuild -project AllSportsScoreboard.xcodeproj -scheme AllSportsScoreboard \
-            -destination "id=$UDID" -derivedDataPath build CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -5
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -5
 
       - name: Capture
         run: |
           APP=build/Build/Products/Debug-iphonesimulator/AllSportsScoreboard.app
           BUNDLE=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
-          xcrun simctl boot "$UDID" || true
-          xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryLevel 100 --batteryState charged \
-            --cellularMode active --cellularBars 4 --wifiBars 3 --dataNetwork wifi
-          xcrun simctl install "$UDID" "$APP"
           mkdir -p shots
-          for SCENE in basketball home settings pickleball fullScreen bucketGolf final soccer; do
-            xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
-            xcrun simctl launch "$UDID" "$BUNDLE" -screenshot "$SCENE"
-            sleep 10
-            xcrun simctl io "$UDID" screenshot "shots/$SCENE.png"
-            # simctl captures the portrait framebuffer; turn landscape scenes the right way up.
-            case "$SCENE" in home|settings) ;; *) sips -r 270 "shots/$SCENE.png" > /dev/null ;; esac
-            sips -g pixelWidth -g pixelHeight "shots/$SCENE.png" | tail -2
-          done
+          capture() {
+            DEVICE=$1; UDID=$2
+            xcrun simctl boot "$UDID" || true
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl status_bar "$UDID" override --time 9:41 --batteryLevel 100 --batteryState charged \
+              --cellularMode active --cellularBars 4 --wifiBars 3 --dataNetwork wifi
+            xcrun simctl install "$UDID" "$APP"
+            N=0
+            for SCENE in basketball:scoreboard home:sports settings:settings bucketGolf:bucket-golf final:final; do
+              N=$((N+1)); KEY=${SCENE%%:*}; NAME=${SCENE##*:}
+              FILE="shots/$DEVICE-$N-$NAME.png"
+              xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
+              xcrun simctl launch "$UDID" "$BUNDLE" -screenshot "$KEY"
+              sleep 10
+              xcrun simctl io "$UDID" screenshot "$FILE"
+              # simctl captures the portrait framebuffer; turn landscape scenes the right way up.
+              case "$KEY" in home|settings) ;; *) sips -r 270 "$FILE" > /dev/null ;; esac
+              sips -g pixelWidth -g pixelHeight "$FILE" | tail -2
+            done
+            xcrun simctl shutdown "$UDID" || true
+          }
+          capture iphone "$IPHONE"
+          capture ipad "$IPAD"
 
       - name: Collect crash reports
         if: always()
@@ -67,12 +80,10 @@ jobs:
 
       - name: Commit to the screenshots branch
         run: |
+          mkdir /tmp/out && cp shots/* /tmp/out/ && cd /tmp/out
+          git init -q -b screenshots
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          mv shots /tmp/shots
-          git checkout --orphan screenshots
-          git rm -rf . > /dev/null
-          cp /tmp/shots/* .
           git add -A
-          git commit -m "Screenshots from ${GITHUB_SHA::7}"
-          git push -f origin screenshots
+          git commit -qm "Screenshots from ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" screenshots
