@@ -168,16 +168,20 @@ struct PlayerGameState: Codable, Equatable {
     }
 
     /// Lowest total first; ties keep setup order.
+    /// Best first. Mid-round, players can have finished different numbers of holes, so like a
+    /// golf leaderboard this ranks by score to par on finished holes; once everyone has played
+    /// every hole that is the same as lowest total.
     var standings: [Int] {
         Array(0..<playerCount).sorted { a, b in
-            if total(a) != total(b) { return total(a) < total(b) }
+            if relativeToPar(a) != relativeToPar(b) { return relativeToPar(a) < relativeToPar(b) }
+            if holesFinished(a) != holesFinished(b) { return holesFinished(a) > holesFinished(b) }
             return a < b
         }
     }
 
     var leaders: [Int] {
         guard let first = standings.first else { return [] }
-        return standings.filter { total($0) == total(first) }
+        return standings.filter { relativeToPar($0) == relativeToPar(first) }
     }
 
     var snapshot: PlayerSnapshot {

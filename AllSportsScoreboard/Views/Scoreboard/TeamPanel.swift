@@ -311,16 +311,18 @@ struct CounterChip: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 6) {
-                Text(spec.shortTitle)
+                // Past the threshold (team fouls → BONUS) the label itself changes and the chip
+                // lights up, so it stays as compact as the plain chip.
+                Text(highlightLabel ?? spec.shortTitle)
                     .font(.boardLabel(10))
                     .tracking(1)
-                    .foregroundStyle(theme.secondaryText)
+                    .foregroundStyle(highlightLabel == nil ? theme.secondaryText : theme.onClock)
 
                 switch spec.style {
                 case .number:
                     Text("\(value)")
                         .font(.system(size: 16, weight: .bold).monospacedDigit())
-                        .foregroundStyle(theme.primaryText)
+                        .foregroundStyle(highlightLabel == nil ? theme.primaryText : theme.onClock)
                         .contentTransition(.numericText(value: Double(value)))
                 case .dots:
                     HStack(spacing: 3) {
@@ -331,20 +333,10 @@ struct CounterChip: View {
                         }
                     }
                 }
-
-                if let threshold = spec.highlightAt, value >= threshold, let label = spec.highlightLabel {
-                    Text(label)
-                        .font(.boardLabel(9))
-                        .tracking(0.8)
-                        .foregroundStyle(theme.onClock)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(theme.clock))
-                }
             }
             .padding(.horizontal, 10)
             .frame(height: 28)
-            .background(Capsule().fill(theme.control))
+            .background(Capsule().fill(highlightLabel == nil ? theme.control : theme.clock))
             .overlay(Capsule().strokeBorder(theme.controlStroke))
             .animation(.snappy(duration: 0.25), value: value)
         }
@@ -366,6 +358,11 @@ struct CounterChip: View {
             let increasing = direction == .increment
             if increasing == (spec.tapDelta > 0) { onTap() } else { onReverse() }
         }
+    }
+
+    private var highlightLabel: String? {
+        guard let threshold = spec.highlightAt, value >= threshold else { return nil }
+        return spec.highlightLabel
     }
 
     private var accessibilityValue: String {

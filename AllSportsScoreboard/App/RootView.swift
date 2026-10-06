@@ -129,7 +129,10 @@ struct RootView: View {
         scene.applyOrientation()
         switch scene {
         case .settings:
-            showsDemoSettings = true
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1))
+                showsDemoSettings = true
+            }
         case .home:
             break
         case .basketball:
