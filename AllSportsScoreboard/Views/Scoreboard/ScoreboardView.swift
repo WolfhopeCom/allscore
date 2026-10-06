@@ -5,6 +5,8 @@ import SwiftUI
 struct ScoreboardView: View {
     let session: GameSession
     let onExit: () -> Void
+    /// Opens straight into Full Screen mode (used for screenshots).
+    var startsFullScreen = false
 
     @Environment(\.theme) private var theme
     @Environment(AppSettings.self) private var settings
@@ -66,6 +68,7 @@ struct ScoreboardView: View {
         .statusBarHidden(isFullScreen)
         .persistentSystemOverlays(isFullScreen ? .hidden : .automatic)
         .onAppear {
+            if startsFullScreen { isFullScreen = true }
             updateScreenAwake()
             // Render sounds right after the first frame so the presentation never hitches.
             Task { @MainActor in Feedback.shared.prewarmSounds() }

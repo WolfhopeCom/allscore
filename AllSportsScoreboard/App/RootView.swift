@@ -20,6 +20,7 @@ struct RootView: View {
     @State private var showPlayerSetup = false
     @State private var pending: PendingGame?
     @State private var replacement: PendingGame?
+    @State private var opensFullScreen = false
 
     var body: some View {
         NavigationStack {
@@ -63,7 +64,7 @@ struct RootView: View {
         }
         .fullScreenCover(isPresented: $isScoreboardPresented, onDismiss: leftGame) {
             if let session {
-                ScoreboardView(session: session) { isScoreboardPresented = false }
+                ScoreboardView(session: session, onExit: { isScoreboardPresented = false }, startsFullScreen: opensFullScreen)
             }
         }
         .fullScreenCover(isPresented: $isPlayerBoardPresented, onDismiss: leftGame) {
@@ -93,6 +94,12 @@ struct RootView: View {
         }
         .modifier(PurchaseStatusAlert())
         .onAppear {
+            #if DEBUG
+            if let scene = DemoScene.current {
+                openDemo(scene)
+                return
+            }
+            #endif
             restoreSavedGame()
             PurchaseStore.shared.start()
             AdManager.shared.start()
@@ -114,6 +121,38 @@ struct RootView: View {
         }
         if session != nil || playerSession != nil { Feedback.shared.prewarmSounds() }
     }
+
+    #if DEBUG
+    private func openDemo(_ scene: DemoScene) {
+        DemoScene.rotateToLandscape()
+        switch scene {
+        case .home:
+            session = GameSession(state: DemoScene.basketball())
+        case .basketball:
+            session = GameSession(state: DemoScene.basketball())
+            isScoreboardPresented = true
+        case .fullScreen:
+            session = GameSession(state: DemoScene.basketball(period: 4, scores: [71, 70], remaining: 8.4))
+            opensFullScreen = true
+            isScoreboardPresented = true
+        case .pickleball:
+            session = GameSession(state: DemoScene.pickleball())
+            isScoreboardPresented = true
+        case .soccer:
+            settings.appearance = .daylight
+            session = GameSession(state: DemoScene.soccer())
+            isScoreboardPresented = true
+        case .final:
+            let game = GameSession(state: DemoScene.basketball(period: 4, scores: [92, 88], remaining: 0.5))
+            game.endGame()
+            session = game
+            isScoreboardPresented = true
+        case .bucketGolf:
+            playerSession = DemoScene.bucketGolf()
+            isPlayerBoardPresented = true
+        }
+    }
+    #endif
 
     /// Leaving a finished game is the one moment a full-screen ad may appear (free version only).
     private func leftGame() {

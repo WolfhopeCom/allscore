@@ -1,0 +1,69 @@
+name: App Store screenshots
+
+# Runs when a commit message contains [screenshots]. Captures every demo scene on the
+# 6.9-inch iPhone simulator and commits the PNGs to the `screenshots` branch.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    if: contains(github.event.head_commit.message, '[screenshots]')
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use the newest Xcode on the runner
+        run: |
+          XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+
+      - name: Pick the largest iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          c=[(k,x) for k,v in d.items() if 'iOS' in k for x in v if 'Pro Max' in x['name']]
+          c.sort(key=lambda kx: [int(p) for p in kx[0].split('iOS-')[-1].split('-')])
+          k,x=c[-1]; print(x['udid']); print(x['name'], k, file=sys.stderr)")
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild -project AllSportsScoreboard.xcodeproj -scheme AllSportsScoreboard \
+            -destination "id=$UDID" -derivedDataPath build CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -5
+
+      - name: Capture
+        run: |
+          APP=build/Build/Products/Debug-iphonesimulator/AllSportsScoreboard.app
+          BUNDLE=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryLevel 100 --batteryState charged \
+            --cellularMode active --cellularBars 4 --wifiBars 3 --dataNetwork wifi
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p shots
+          for SCENE in basketball home pickleball fullScreen bucketGolf final soccer; do
+            xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BUNDLE" -screenshot "$SCENE"
+            sleep 8
+            xcrun simctl io "$UDID" screenshot "shots/$SCENE.png"
+            sips -g pixelWidth -g pixelHeight "shots/$SCENE.png" | tail -2
+          done
+
+      - name: Commit to the screenshots branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          mv shots /tmp/shots
+          git checkout --orphan screenshots
+          git rm -rf . > /dev/null
+          cp /tmp/shots/*.png .
+          git add *.png
+          git commit -m "Screenshots from ${GITHUB_SHA::7}"
+          git push -f origin screenshots
