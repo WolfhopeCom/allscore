@@ -5,15 +5,14 @@ enum AdConfig {
     /// The one-time Remove Ads purchase (non-consumable). Must match App Store Connect exactly.
     static let removeAdsProductID = "allsportsscoreboard.removeads"
 
-    // Google's public test ad units. They always fill and never pay out, so they're safe while
-    // developing. Before release, replace the two Release values with the ad unit IDs from your
-    // AdMob account, and set ADMOB_APP_ID in the target's build settings to your AdMob app ID.
+    // Debug builds use Google's public test ad units so tapping ads while developing can never
+    // count as invalid clicks on the real account. Release builds use the live AdMob units.
     #if DEBUG
     static let bannerUnitID = "ca-app-pub-3940256099942544/2435281174"
     static let interstitialUnitID = "ca-app-pub-3940256099942544/4411468910"
     #else
-    static let bannerUnitID = "ca-app-pub-3940256099942544/2435281174"
-    static let interstitialUnitID = "ca-app-pub-3940256099942544/4411468910"
+    static let bannerUnitID = "ca-app-pub-7157445414631272/8309391895"
+    static let interstitialUnitID = "ca-app-pub-7157445414631272/4234415517"
     #endif
 
     /// True while the Release build still points at Google's test ad units.
