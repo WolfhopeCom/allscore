@@ -53,6 +53,8 @@ jobs:
             xcrun simctl launch "$UDID" "$BUNDLE" -screenshot "$SCENE"
             sleep 8
             xcrun simctl io "$UDID" screenshot "shots/$SCENE.png"
+            # simctl captures the portrait framebuffer; turn landscape scenes the right way up.
+            case "$SCENE" in home|settings) ;; *) sips -r 270 "shots/$SCENE.png" > /dev/null ;; esac
             sips -g pixelWidth -g pixelHeight "shots/$SCENE.png" | tail -2
           done
 

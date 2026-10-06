@@ -20,7 +20,7 @@ enum DemoScene: String, CaseIterable {
         scene.requestGeometryUpdate(.iOS(interfaceOrientations: isLandscape ? .landscapeRight : .portrait))
     }
 
-    static func basketball(period: Int = 3, scores: [Int] = [48, 45], remaining: TimeInterval = 42.7) -> GameState {
+    static func basketball(period: Int = 3, scores: [Int] = [48, 45], remaining: TimeInterval = 58.4) -> GameState {
         var config = SportCatalog.defaultConfig(for: .basketball)
         config.teamA = TeamConfig(name: "Lions", color: .gold)
         config.teamB = TeamConfig(name: "Hawks", color: .blue)
@@ -79,18 +79,23 @@ enum DemoScene: String, CaseIterable {
         ]
         config.holes = 9
         let session = PlayerGameSession(state: PlayerGameState(config: config))
-        let holes: [[[ShotKind]]] = [
-            [[.miss, .contact], [.miss, .miss, .contact], [.miss, .bucketIn], [.miss, .hazard, .contact]],
-            [[.miss, .miss, .contact], [.miss, .contact], [.bucketIn], [.miss, .miss, .miss, .contact]],
-            [[.miss, .contact], [.miss, .hazard]]
+        // Shots per player (by index) for the first two holes; the tee order changes every
+        // hole (best score on the last hole goes first), so play follows whoever is up.
+        let finishedHoles: [[Int: [ShotKind]]] = [
+            [0: [.miss, .contact], 1: [.miss, .miss, .contact], 2: [.miss, .miss, .bucketIn], 3: [.miss, .hazard, .contact]],
+            [0: [.miss, .miss, .contact], 1: [.miss, .contact], 2: [.miss, .miss, .contact], 3: [.miss, .miss, .miss, .contact]]
         ]
-        for (index, hole) in holes.enumerated() {
-            for shots in hole {
-                for shot in shots { session.record(shot) }
-                if shots.last?.finishesHole == true { session.advance() }
+        for hole in finishedHoles {
+            for _ in hole {
+                let player = session.state.current
+                for shot in hole[player] ?? [.contact] { session.record(shot) }
+                session.advance()
             }
-            if index < holes.count - 1 && session.isHoleComplete { session.advance() }
         }
+        // Hole 3 under way: the first player is done, the second has two swings in.
+        for shot in [ShotKind.miss, .contact] { session.record(shot) }
+        session.advance()
+        for shot in [ShotKind.miss, .hazard] { session.record(shot) }
         return session
     }
 }

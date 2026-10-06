@@ -75,6 +75,8 @@ struct TeamPanel: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
                     .background(Capsule().fill(theme.clock))
+                    .fixedSize()
+                    .layoutPriority(1)
                     .transition(.scale.combined(with: .opacity))
                     .accessibilityLabel("Has possession")
             }
@@ -95,6 +97,8 @@ struct TeamPanel: View {
                 .padding(.horizontal, 10)
                 .frame(height: 28)
                 .overlay(Capsule().strokeBorder(theme.controlStroke))
+                .fixedSize()
+                .layoutPriority(1)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(badge.title.capitalized): \(badge.value)")
             }
@@ -107,6 +111,9 @@ struct TeamPanel: View {
                     onReverse: { session.adjustCounter(spec, side: side, by: -spec.tapDelta) },
                     onReset: { session.resetCounter(spec, side: side) }
                 )
+                // Chips keep their full width; the team name scales down instead.
+                .fixedSize()
+                .layoutPriority(1)
             }
         }
         .frame(height: 30)

@@ -136,7 +136,7 @@ struct RootView: View {
             session = GameSession(state: DemoScene.basketball())
             isScoreboardPresented = true
         case .fullScreen:
-            session = GameSession(state: DemoScene.basketball(period: 4, scores: [71, 70], remaining: 8.4))
+            session = GameSession(state: DemoScene.basketball(period: 4, scores: [71, 70], remaining: 24.4))
             opensFullScreen = true
             isScoreboardPresented = true
         case .pickleball:
@@ -147,10 +147,14 @@ struct RootView: View {
             session = GameSession(state: DemoScene.soccer())
             isScoreboardPresented = true
         case .final:
-            let game = GameSession(state: DemoScene.basketball(period: 4, scores: [92, 88], remaining: 0.5))
-            game.endGame()
+            let game = GameSession(state: DemoScene.basketball(period: 4, scores: [92, 88], remaining: 30))
             session = game
             isScoreboardPresented = true
+            // End it once the scoreboard is on screen, the way a real game finishes.
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                game.endGame()
+            }
         case .bucketGolf:
             playerSession = DemoScene.bucketGolf()
             isPlayerBoardPresented = true
