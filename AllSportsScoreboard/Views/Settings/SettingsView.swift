@@ -8,6 +8,8 @@ struct SettingsView: View {
         @Bindable var settings = settings
 
         Form {
+            AdsSection()
+
             Section {
                 Toggle("Sound Effects", isOn: $settings.soundEnabled)
                 if settings.soundEnabled {
@@ -97,6 +99,39 @@ struct SettingsView: View {
         .background(theme.background.ignoresSafeArea())
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Remove Ads purchase, restore, and (where the law requires it) ad privacy choices.
+private struct AdsSection: View {
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let store = PurchaseStore.shared
+        Section {
+            if store.adsRemoved {
+                Label("Ads removed. Thank you!", systemImage: "checkmark.seal.fill")
+                    .foregroundStyle(theme.primaryText)
+            } else {
+                RemoveAdsButton()
+                Button("Restore Purchases") {
+                    Task { await store.restore() }
+                }
+                .disabled(store.status == .working)
+            }
+            if AdManager.shared.privacyOptionsRequired && !store.adsRemoved {
+                Button("Ad Privacy Choices") {
+                    AdManager.shared.presentPrivacyOptions()
+                }
+            }
+        } header: {
+            Text("Ads")
+        } footer: {
+            Text(store.adsRemoved
+                 ? "Your purchase works on every device signed in to the same Apple Account."
+                 : "A one-time purchase removes every ad for good, on all your devices. Ads never appear on the scoreboard during a game.")
+        }
+        .listRowBackground(theme.panel)
     }
 }
 

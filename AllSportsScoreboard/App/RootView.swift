@@ -61,12 +61,12 @@ struct RootView: View {
                 showPlayerSetup = false
             }
         }
-        .fullScreenCover(isPresented: $isScoreboardPresented) {
+        .fullScreenCover(isPresented: $isScoreboardPresented, onDismiss: leftGame) {
             if let session {
                 ScoreboardView(session: session) { isScoreboardPresented = false }
             }
         }
-        .fullScreenCover(isPresented: $isPlayerBoardPresented) {
+        .fullScreenCover(isPresented: $isPlayerBoardPresented, onDismiss: leftGame) {
             if let playerSession {
                 PlayerBoardView(session: playerSession) { isPlayerBoardPresented = false }
             }
@@ -91,7 +91,12 @@ struct RootView: View {
         } message: {
             Text("Your current game hasn't finished. Starting a new one will discard it.")
         }
-        .onAppear(perform: restoreSavedGame)
+        .modifier(PurchaseStatusAlert())
+        .onAppear {
+            restoreSavedGame()
+            PurchaseStore.shared.start()
+            AdManager.shared.start()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { session?.handleBecameActive() }
         }
@@ -108,6 +113,15 @@ struct RootView: View {
             session = GameSession(state: saved)
         }
         if session != nil || playerSession != nil { Feedback.shared.prewarmSounds() }
+    }
+
+    /// Leaving a finished game is the one moment a full-screen ad may appear (free version only).
+    private func leftGame() {
+        if let session, session.state.phase == .final {
+            AdManager.shared.gameDidFinish(id: session.state.id)
+        } else if let playerSession, playerSession.state.phase == .final {
+            AdManager.shared.gameDidFinish(id: playerSession.state.id)
+        }
     }
 
     private func launchPendingGame() {

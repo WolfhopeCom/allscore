@@ -1,0 +1,142 @@
+import SwiftUI
+import GoogleMobileAds
+
+/// A banner ad pinned to the bottom of a menu screen, with a one-tap way to remove ads.
+/// Takes no space at all once ads are removed or can't be shown.
+struct AdBannerBar: View {
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        if AdManager.shared.showsAds {
+            VStack(spacing: 0) {
+                Divider()
+                HStack {
+                    Text("Advertisement")
+                        .font(.caption2)
+                        .foregroundStyle(theme.tertiaryText)
+                    Spacer()
+                    RemoveAdsButton(compact: true)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+                AdaptiveBanner()
+            }
+            .background(theme.background)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+}
+
+/// "Remove Ads · $2.99", in the store's local price.
+struct RemoveAdsButton: View {
+    var compact = false
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let store = PurchaseStore.shared
+        Button {
+            Task { await store.purchase() }
+        } label: {
+            if compact {
+                Text(store.displayPrice.map { "Remove ads · \($0)" } ?? "Remove ads")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.clock)
+            } else {
+                HStack {
+                    Label("Remove Ads", systemImage: "nosign")
+                        .foregroundStyle(theme.primaryText)
+                    Spacer()
+                    if store.status == .working {
+                        ProgressView()
+                    } else if let price = store.displayPrice {
+                        Text(price)
+                            .font(.body.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(theme.clock)
+                    }
+                }
+            }
+        }
+        .disabled(store.status == .working)
+        .accessibilityHint("One-time purchase that removes all ads")
+    }
+}
+
+/// Sizes an anchored adaptive banner to the available width.
+private struct AdaptiveBanner: View {
+    @State private var width: CGFloat = 0
+
+    var body: some View {
+        let adSize = currentOrientationAnchoredAdaptiveBanner(width: max(width, 320))
+        ZStack {
+            if width > 0 {
+                BannerRepresentable(adSize: adSize)
+                    .frame(width: adSize.size.width, height: adSize.size.height)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: adSize.size.height)
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { width = proxy.size.width }
+                    .onChange(of: proxy.size.width) { _, newWidth in width = newWidth }
+            }
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Advertisement")
+    }
+}
+
+private struct BannerRepresentable: UIViewRepresentable {
+    let adSize: AdSize
+
+    func makeUIView(context: Context) -> BannerView {
+        let banner = BannerView(adSize: adSize)
+        banner.adUnitID = AdConfig.bannerUnitID
+        banner.rootViewController = UIApplication.topViewController
+        banner.load(GoogleMobileAds.Request())
+        return banner
+    }
+
+    func updateUIView(_ banner: BannerView, context: Context) {
+        guard banner.adSize.size != adSize.size else { return }
+        banner.adSize = adSize
+        banner.load(GoogleMobileAds.Request())
+    }
+}
+
+/// Shows App Store results (failed, Ask to Buy pending) from wherever a purchase started.
+struct PurchaseStatusAlert: ViewModifier {
+    func body(content: Content) -> some View {
+        let store = PurchaseStore.shared
+        content.alert(
+            title,
+            isPresented: Binding(
+                get: {
+                    switch store.status {
+                    case .failed, .pending: return true
+                    case .idle, .working: return false
+                    }
+                },
+                set: { if !$0 { store.status = .idle } }
+            )
+        ) {
+            Button("OK", role: .cancel) { store.status = .idle }
+        } message: {
+            Text(message)
+        }
+    }
+
+    private var title: String {
+        if case .pending = PurchaseStore.shared.status { return "Waiting for Approval" }
+        return "Purchase Not Completed"
+    }
+
+    private var message: String {
+        switch PurchaseStore.shared.status {
+        case .failed(let reason): return reason
+        case .pending: return "Ads will disappear as soon as the purchase is approved."
+        case .idle, .working: return ""
+        }
+    }
+}

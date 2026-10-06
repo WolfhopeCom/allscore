@@ -27,6 +27,7 @@ struct HistoryView: View {
             }
         }
         .background(theme.background.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom, spacing: 0) { AdBannerBar() }
         .navigationTitle("History")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

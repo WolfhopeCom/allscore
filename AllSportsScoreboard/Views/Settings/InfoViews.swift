@@ -33,7 +33,7 @@ struct AboutView: View {
                 )
                 InfoParagraph(
                     title: "Works anywhere",
-                    text: "No account, no internet connection, no ads. It works the same in a gym basement or in Airplane Mode."
+                    text: "No account and no internet connection needed. Scoring works the same in a gym basement or in Airplane Mode. The free version shows ads on menu screens, never on the scoreboard during a game, and a one-time purchase removes them."
                 )
             }
             .padding(24)
@@ -52,17 +52,25 @@ struct PrivacyView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Text("Your data stays on your device.")
+                Text("Your games stay on your device.")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundStyle(theme.primaryText)
 
                 InfoParagraph(
-                    title: "What we collect",
-                    text: "Nothing. All-Sports Scoreboard has no accounts, no analytics, no advertising, and no tracking. It never connects to the internet."
+                    title: "Your scores and settings",
+                    text: "Your settings, team and player names, the game in progress, and your game history are stored only in the app's private storage on this device. We have no servers and no accounts, and we never see any of it. Deleting the app removes it all."
                 )
                 InfoParagraph(
-                    title: "What's stored on this device",
-                    text: "Your settings, your default team names, the game in progress, and your game history. These live only in the app's private storage on this device and are removed if you delete the app."
+                    title: "Ads in the free version",
+                    text: "The free version shows ads from Google AdMob on menu screens. To show and measure ads, Google may collect your device's advertising identifier (only if you allow tracking), your IP address and approximate location, and how you interact with ads. Ads never appear on the scoreboard during a game."
+                )
+                InfoParagraph(
+                    title: "Your choices",
+                    text: "You can refuse tracking when asked, or change it later in iPhone Settings → Privacy & Security → Tracking. In regions that require it, Settings → Ad Privacy Choices lets you change your consent. Remove Ads turns off ads and their data collection entirely."
+                )
+                InfoParagraph(
+                    title: "Purchases",
+                    text: "Remove Ads is handled by Apple. We never see your payment details."
                 )
                 InfoParagraph(
                     title: "Deleting your history",

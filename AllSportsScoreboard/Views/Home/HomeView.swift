@@ -49,6 +49,8 @@ struct HomeView: View {
             .frame(maxWidth: .infinity)
         }
         .background(theme.background.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom, spacing: 0) { AdBannerBar() }
+        .animation(.easeInOut(duration: 0.25), value: AdManager.shared.showsAds)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
