@@ -225,7 +225,9 @@ struct ScoreNumber: View {
     }
 
     var body: some View {
-        Text(text)
+        // Read outside the animator's closure, which isn't main-actor isolated.
+        let glow = theme.glow
+        return Text(text)
             .font(.score(fontSize))
             .foregroundStyle(theme.primaryText)
             .lineLimit(1)
@@ -236,7 +238,7 @@ struct ScoreNumber: View {
                 content
                     .scaleEffect(pulse.scale)
                     .shadow(
-                        color: color.opacity((0.28 + pulse.glow) * theme.glow),
+                        color: color.opacity((0.28 + pulse.glow) * glow),
                         radius: fontSize * 0.12
                     )
             } keyframes: { _ in

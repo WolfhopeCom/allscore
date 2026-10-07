@@ -18,8 +18,9 @@ struct AdBannerBar: View {
                     RemoveAdsButton(compact: true)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 4)
-                AdaptiveBanner()
+                .padding(.top, 2)
+                FixedBanner()
+                    .padding(.bottom, 4)
             }
             .background(theme.background)
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -61,48 +62,28 @@ struct RemoveAdsButton: View {
     }
 }
 
-/// Sizes an anchored adaptive banner to the available width.
-private struct AdaptiveBanner: View {
-    @State private var width: CGFloat = 0
-
+/// A standard 320 × 50 banner: the same small size in portrait and landscape, so it never
+/// changes height on rotation or crowds the screen.
+private struct FixedBanner: View {
     var body: some View {
-        let adSize = currentOrientationAnchoredAdaptiveBanner(width: max(width, 320))
-        ZStack {
-            if width > 0 {
-                BannerRepresentable(adSize: adSize)
-                    .frame(width: adSize.size.width, height: adSize.size.height)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: adSize.size.height)
-        .background(
-            GeometryReader { proxy in
-                Color.clear
-                    .onAppear { width = proxy.size.width }
-                    .onChange(of: proxy.size.width) { _, newWidth in width = newWidth }
-            }
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Advertisement")
+        BannerRepresentable()
+            .frame(width: 320, height: 50)
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Advertisement")
     }
 }
 
 private struct BannerRepresentable: UIViewRepresentable {
-    let adSize: AdSize
-
     func makeUIView(context: Context) -> BannerView {
-        let banner = BannerView(adSize: adSize)
+        let banner = BannerView(adSize: AdSizeBanner)
         banner.adUnitID = AdConfig.bannerUnitID
         banner.rootViewController = UIApplication.topViewController
         banner.load(GoogleMobileAds.Request())
         return banner
     }
 
-    func updateUIView(_ banner: BannerView, context: Context) {
-        guard banner.adSize.size != adSize.size else { return }
-        banner.adSize = adSize
-        banner.load(GoogleMobileAds.Request())
-    }
+    func updateUIView(_ banner: BannerView, context: Context) {}
 }
 
 /// Shows App Store results (failed, Ask to Buy pending) from wherever a purchase started.

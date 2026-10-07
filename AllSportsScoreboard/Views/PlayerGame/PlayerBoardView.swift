@@ -37,6 +37,8 @@ struct PlayerBoardView: View {
                 .padding(.horizontal, landscape ? 12 : 14)
                 .padding(.top, 4)
                 .padding(.bottom, 8)
+                .id(landscape)
+                .transition(.identity)
 
                 if session.phase == .final {
                     PlayerFinalOverlay(session: session, onHome: leave)

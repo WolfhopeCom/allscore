@@ -55,6 +55,10 @@ struct ScoreboardView: View {
                 .padding(.horizontal, landscape ? 12 : 14)
                 .padding(.top, isFullScreen ? 10 : 4)
                 .padding(.bottom, isFullScreen ? 10 : 8)
+                // Portrait and landscape are different layouts. Swapping cleanly while the
+                // system rotates looks smooth; animating one into the other mid-rotation doesn't.
+                .id(landscape)
+                .transition(.identity)
 
                 if session.phase == .final {
                     FinalOverlay(session: session, onHome: leaveScoreboard)
