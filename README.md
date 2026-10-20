@@ -36,8 +36,8 @@ Source folders are synchronized with disk, so any file added under `AllSportsSco
 
 ## Status
 
-Built: 14 sports (Basketball, Football, Soccer, Hockey, Baseball, Volleyball, Tennis, Table Tennis, Badminton, Pickleball, Boxing/MMA, Wrestling, Bucket Golf, Custom), drift-free timer, synthesized sounds with 5 buzzer styles, haptics, undo, swap sides, history, settings, full screen mode, keep-awake, privacy manifest, unit tests (including a QA regression suite).
+Built: 16 sports (Basketball, Football, Soccer, Hockey, Lacrosse, Baseball, Volleyball, Tennis, Table Tennis, Badminton, Pickleball, Boxing/MMA, Wrestling, Bucket Golf, Cornhole, Custom), drift-free timer, synthesized sounds with 5 buzzer styles, haptics, undo, swap sides, history, settings, full screen mode, keep-awake, privacy manifest, unit tests (including a QA regression suite).
 
-Scoring models (`ScoringModel`): `points` (running totals over timed periods), `rally` (points → sets), `tennis`, `baseball`, `combat` (timed rounds, rest timer, scorecards). Match logic lives in `GameSession+Match.swift`. Bucket Golf (BucketGolf stroke play: par 3 every hole, bucket-in −1 bonus, hazard penalty, 1–8 players) runs on its own engine, `PlayerGameSession`, with `PlayerBoardView`.
+Scoring models (`ScoringModel`): `points` (running totals over timed periods), `rally` (points → sets), `tennis`, `baseball`, `combat` (timed rounds, rest timer, scorecards), `cancellation` (cornhole innings: only the difference scores). Match logic lives in `GameSession+Match.swift`. Bucket Golf (BucketGolf stroke play: par 3 every hole, bucket-in −1 bonus, hazard penalty, 1–8 players) runs on its own engine, `PlayerGameSession`, with `PlayerBoardView`.
 
 Next: on-device polish pass; App Store assets.
