@@ -4,7 +4,7 @@ import Foundation
 enum SportCatalog {
     /// Sports shown on the home screen, in order.
     static let all: [SportKind] = [
-        .basketball, .football, .soccer, .hockey, .baseball, .volleyball,
+        .basketball, .football, .soccer, .hockey, .lacrosse, .baseball, .volleyball,
         .tennis, .tableTennis, .badminton, .pickleball, .boxing, .wrestling, .bucketGolf, .custom
     ]
 
@@ -14,6 +14,7 @@ enum SportCatalog {
         case .football: return FootballRules()
         case .soccer: return SoccerRules()
         case .hockey: return HockeyRules()
+        case .lacrosse: return LacrosseRules(periodCount: config.periodCount)
         case .baseball: return BaseballRules()
         case .volleyball: return VolleyballRules(config: config)
         case .tennis: return TennisRules()
@@ -41,6 +42,7 @@ enum SportCatalog {
         case .football: defaults = FootballRules().defaults
         case .soccer: defaults = SoccerRules().defaults
         case .hockey: defaults = HockeyRules().defaults
+        case .lacrosse: defaults = LacrosseRules().defaults
         case .baseball: defaults = BaseballRules().defaults
         case .volleyball: defaults = VolleyballRules().defaults
         case .tennis: defaults = TennisRules().defaults

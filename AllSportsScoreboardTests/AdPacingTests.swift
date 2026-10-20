@@ -32,3 +32,55 @@ final class AdPacingTests: XCTestCase {
         XCTAssertTrue(removed)
     }
 }
+
+final class ReviewPromptTests: XCTestCase {
+    private func freshDefaults() -> UserDefaults {
+        let name = "ReviewPromptTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
+    }
+
+    func testAsksOnThirdFinishedGameOnly() {
+        let defaults = freshDefaults()
+        let asks = (1...12).map { _ in ReviewPrompt.recordFinishedGame(id: UUID(), version: "1.1", defaults: defaults) }
+        XCTAssertEqual(asks.enumerated().filter(\.element).map { $0.offset + 1 }, [3])
+    }
+
+    func testSameGameIsOnlyCountedOnce() {
+        let defaults = freshDefaults()
+        let game = UUID()
+        for _ in 0..<5 { _ = ReviewPrompt.recordFinishedGame(id: game, version: "1.1", defaults: defaults) }
+        XCTAssertFalse(ReviewPrompt.recordFinishedGame(id: UUID(), version: "1.1", defaults: defaults))
+        XCTAssertTrue(ReviewPrompt.recordFinishedGame(id: UUID(), version: "1.1", defaults: defaults))
+    }
+
+    func testAsksAgainInANewVersion() {
+        let defaults = freshDefaults()
+        for game in 1...9 { _ = ReviewPrompt.recordFinishedGame(id: UUID(), version: game < 5 ? "1.1" : "1.2", defaults: defaults) }
+        XCTAssertTrue(ReviewPrompt.recordFinishedGame(id: UUID(), version: "1.2", defaults: defaults))
+    }
+}
+
+final class LacrosseTests: XCTestCase {
+    @MainActor
+    func testFirstGoalInOvertimeWins() {
+        var config = SportCatalog.defaultConfig(for: .lacrosse)
+        config.periodCount = 4
+        var state = GameState(config: config)
+        state.phase = .live
+        state.period = 5
+        state.scores = [7, 7]
+        let session = GameSession(state: state, environment: .silent)
+        session.addPoints(1, to: .b)
+        XCTAssertEqual(session.state.phase, .final)
+        XCTAssertEqual(session.state.declaredWinner, .b)
+    }
+
+    func testHalvesAndQuartersAreLabelled() {
+        XCTAssertEqual(LacrosseRules(periodCount: 4).periodLabel(3, regulation: 4), "Q3")
+        XCTAssertEqual(LacrosseRules(periodCount: 2).periodLabel(2, regulation: 2), "H2")
+        XCTAssertEqual(LacrosseRules(periodCount: 4).periodLabel(5, regulation: 4), "SV")
+        XCTAssertEqual(LacrosseRules(periodCount: 2).periodName, "Half")
+    }
+}

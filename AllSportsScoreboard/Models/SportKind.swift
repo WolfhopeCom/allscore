@@ -7,6 +7,7 @@ enum SportKind: String, Codable, CaseIterable, Identifiable {
     case football
     case soccer
     case hockey
+    case lacrosse
     case baseball
     case volleyball
     case tennis

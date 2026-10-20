@@ -549,7 +549,13 @@ final class GameSession: Identifiable {
 
     /// Called on every display tick, and when the app returns to the foreground.
     func tick(at date: Date = Date(), silent: Bool = false) {
-        now = date
+        // The loop runs 20 times a second so the buzzer is never late, but the display only
+        // needs a new time when what it shows changes: once a second above a minute, ten
+        // times a second in the last minute. Skipping the rest saves redrawing the glowing
+        // clock digits (and battery) for nothing.
+        if clockReading(at: date) != clockReading(at: now) {
+            now = date
+        }
         let clock = state.clock
         guard clock.isRunning, clock.hasLimit else { return }
 

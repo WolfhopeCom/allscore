@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 /// A game waiting to start, of either kind.
 private enum PendingGame {
@@ -11,6 +12,7 @@ private enum PendingGame {
 struct RootView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.requestReview) private var requestReview
 
     @State private var session: GameSession?
     @State private var playerSession: PlayerGameSession?
@@ -166,11 +168,28 @@ struct RootView: View {
     #endif
 
     /// Leaving a finished game is the one moment a full-screen ad may appear (free version only).
+    /// It's also the best moment to ask for a rating, and the two never happen together.
     private func leftGame() {
+        let finishedID: UUID?
         if let session, session.state.phase == .final {
-            AdManager.shared.gameDidFinish(id: session.state.id)
+            finishedID = session.state.id
         } else if let playerSession, playerSession.state.phase == .final {
-            AdManager.shared.gameDidFinish(id: playerSession.state.id)
+            finishedID = playerSession.state.id
+        } else {
+            finishedID = nil
+        }
+        guard let finishedID else { return }
+        #if DEBUG
+        if DemoScene.current != nil { return }
+        #endif
+        if ReviewPrompt.recordFinishedGame(id: finishedID) {
+            Task { @MainActor in
+                // Let the scoreboard finish sliding away first.
+                try? await Task.sleep(for: .milliseconds(600))
+                requestReview()
+            }
+        } else {
+            AdManager.shared.gameDidFinish(id: finishedID)
         }
     }
 
