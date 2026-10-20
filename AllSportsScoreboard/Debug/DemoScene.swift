@@ -5,7 +5,7 @@ import UIKit
 /// Real game states for App Store screenshots, opened with a launch argument such as
 /// `-screenshot basketball`. Debug builds only; never part of the App Store build.
 enum DemoScene: String, CaseIterable {
-    case home, basketball, fullScreen, pickleball, bucketGolf, final, soccer, settings
+    case home, basketball, fullScreen, pickleball, bucketGolf, final, soccer, settings, cornhole, lacrosse
 
     static var current: DemoScene? {
         UserDefaults.standard.string(forKey: "screenshot").flatMap(DemoScene.init(rawValue:))
@@ -46,6 +46,39 @@ enum DemoScene: String, CaseIterable {
         state.scores = [2, 1]
         let now = Date()
         state.clock.adjust(by: 31 * 60 + 18, at: now)
+        state.clock.start(at: now)
+        return state
+    }
+
+    static func cornhole() -> GameState {
+        var config = SportCatalog.defaultConfig(for: .cornhole)
+        config.teamA = TeamConfig(name: "Bag Boys", color: .blue)
+        config.teamB = TeamConfig(name: "Hole Hunters", color: .red)
+        var state = GameState(config: config)
+        state.phase = .live
+        state.period = 6
+        state.scores = [14, 9]
+        state.match.points = [7, 4]
+        state.match.cards = [
+            RoundCard(round: 1, points: [5, 2]), RoundCard(round: 2, points: [3, 6]),
+            RoundCard(round: 3, points: [9, 4]), RoundCard(round: 4, points: [4, 4]),
+            RoundCard(round: 5, points: [7, 1])
+        ]
+        return state
+    }
+
+    static func lacrosse() -> GameState {
+        var config = SportCatalog.defaultConfig(for: .lacrosse)
+        config.teamA = TeamConfig(name: "Wolves", color: .blue)
+        config.teamB = TeamConfig(name: "Falcons", color: .orange)
+        var state = GameState(config: config)
+        state.phase = .live
+        state.period = 2
+        state.scores = [5, 4]
+        state.counters["timeouts"] = [1, 2]
+        state.possession = .a
+        let now = Date()
+        state.clock.adjust(by: 4 * 60 + 37 - state.clock.remaining(at: now), at: now)
         state.clock.start(at: now)
         return state
     }

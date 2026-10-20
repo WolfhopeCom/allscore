@@ -43,7 +43,16 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -5
 
       - name: Capture
+        env:
+          MESSAGE: ${{ github.event.head_commit.message }}
         run: |
+          # "scenes=key:name,key:name" in the commit message captures just those, on iPhone.
+          CUSTOM=$(printf '%s' "$MESSAGE" | grep -o 'scenes=[A-Za-z0-9,:-]*' | head -1 | cut -d= -f2)
+          if [ -n "$CUSTOM" ]; then
+            SCENES=$(echo "$CUSTOM" | tr ',' ' '); DEVICES="iphone"
+          else
+            SCENES="basketball:scoreboard home:sports settings:settings bucketGolf:bucket-golf final:final"; DEVICES="iphone ipad"
+          fi
           APP=build/Build/Products/Debug-iphonesimulator/AllSportsScoreboard.app
           BUNDLE=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
           mkdir -p shots
@@ -55,7 +64,7 @@ jobs:
               --cellularMode active --cellularBars 4 --wifiBars 3 --dataNetwork wifi
             xcrun simctl install "$UDID" "$APP"
             N=0
-            for SCENE in basketball:scoreboard home:sports settings:settings bucketGolf:bucket-golf final:final; do
+            for SCENE in $SCENES; do
               N=$((N+1)); KEY=${SCENE%%:*}; NAME=${SCENE##*:}
               FILE="shots/$DEVICE-$N-$NAME.png"
               xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
@@ -63,13 +72,17 @@ jobs:
               sleep 10
               xcrun simctl io "$UDID" screenshot "$FILE"
               # simctl captures the portrait framebuffer; turn landscape scenes the right way up.
-              case "$KEY" in home|settings) ;; *) sips -r 270 "$FILE" > /dev/null ;; esac
+              # (iPad windows stay portrait, so only iPhone shots need turning.)
+              if [ "$DEVICE" = iphone ]; then
+                case "$KEY" in home|settings) ;; *) sips -r 270 "$FILE" > /dev/null ;; esac
+              fi
               sips -g pixelWidth -g pixelHeight "$FILE" | tail -2
             done
             xcrun simctl shutdown "$UDID" || true
           }
-          capture iphone "$IPHONE"
-          capture ipad "$IPAD"
+          for D in $DEVICES; do
+            if [ "$D" = iphone ]; then capture iphone "$IPHONE"; else capture ipad "$IPAD"; fi
+          done
 
       - name: Collect crash reports
         if: always()
