@@ -16,5 +16,32 @@
 			<string>cstr6suwn9.skadnetwork</string>
 		</dict>
 	</array>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>quickStart</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Quick Start</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>play.fill</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>bucketGolf</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Bucket Golf</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>figure.golf</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>cornhole</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Cornhole</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>circle.square.fill</string>
+		</dict>
+	</array>
 </dict>
 </plist>

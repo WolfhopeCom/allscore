@@ -3,6 +3,7 @@ import SwiftData
 
 @main
 struct ScoreboardApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var settings = AppSettings.shared
 
     var body: some Scene {

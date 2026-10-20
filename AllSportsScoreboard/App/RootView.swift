@@ -41,13 +41,7 @@ struct RootView: View {
                         setupSport = sport
                     }
                 },
-                onQuickStart: {
-                    if SportCatalog.isPlayerGame(settings.defaultSport) {
-                        requestStart(.players(settings.playerGameDefaults()))
-                    } else {
-                        requestStart(.standard(settings.gameDefaults(for: settings.defaultSport)))
-                    }
-                },
+                onQuickStart: quickStart,
                 onResume: {
                     Feedback.shared.play(.tap)
                     if playerSession != nil { isPlayerBoardPresented = true } else { isScoreboardPresented = true }
@@ -113,7 +107,56 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { session?.handleBecameActive() }
+            if phase == .background { updateResumeShortcut() }
         }
+        .onChange(of: QuickActionRouter.shared.pending) { _, action in
+            if let action { perform(action) }
+        }
+        .task {
+            // A quick action that launched the app arrives before the first frame.
+            if let action = QuickActionRouter.shared.pending { perform(action) }
+        }
+    }
+
+    private func quickStart() {
+        if SportCatalog.isPlayerGame(settings.defaultSport) {
+            requestStart(.players(settings.playerGameDefaults()))
+        } else {
+            requestStart(.standard(settings.gameDefaults(for: settings.defaultSport)))
+        }
+    }
+
+    /// Runs a home-screen quick action, closing whatever is open first.
+    private func perform(_ action: QuickAction) {
+        QuickActionRouter.shared.pending = nil
+        let wasShowingSomething = isScoreboardPresented || isPlayerBoardPresented || setupSport != nil || showPlayerSetup
+        isScoreboardPresented = false
+        isPlayerBoardPresented = false
+        setupSport = nil
+        showPlayerSetup = false
+        Task { @MainActor in
+            if wasShowingSomething { try? await Task.sleep(for: .milliseconds(500)) }
+            switch action {
+            case .quickStart:
+                quickStart()
+            case .resume:
+                if playerSession != nil {
+                    isPlayerBoardPresented = true
+                } else if session != nil {
+                    isScoreboardPresented = true
+                }
+            case .bucketGolf:
+                showPlayerSetup = true
+            case .cornhole:
+                setupSport = .cornhole
+            }
+        }
+    }
+
+    /// Adds "Resume Game" to the icon's quick actions while a game is in progress.
+    private func updateResumeShortcut() {
+        let inProgress = (session?.isInProgress ?? false) || (playerSession?.isInProgress ?? false)
+        UIApplication.shared.shortcutItems = inProgress ? [QuickAction.resumeItem] : []
     }
 
     /// Resumes whichever kind of game was saved most recently.
