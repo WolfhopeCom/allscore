@@ -522,7 +522,8 @@ extension GameSession {
         if winner != nil {
             completeGame(playSound: true)
         } else {
-            environment.feedback(.periodEnd)
+            // A soft chime, not the buzzer: innings end every minute or so.
+            environment.feedback(.periodChange)
         }
     }
 }
