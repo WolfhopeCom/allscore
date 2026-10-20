@@ -37,7 +37,7 @@ final class GameRecord {
         finalPeriodLabel = state.config.sport == .baseball
             ? "\(state.period) Innings"
             : rules.periodLabel(state.period, regulation: regulation)
-        wentToOvertime = state.period > regulation
+        wentToOvertime = rules.allowsOvertime && state.period > regulation
         startedAt = state.createdAt
         finishedAt = Date()
         self.summary = summary ?? ""
@@ -57,7 +57,7 @@ final class GameRecord {
         finalPeriodLabel = state.config.sport == .baseball
             ? "\(state.period) Innings"
             : rules.periodLabel(state.period, regulation: regulation)
-        wentToOvertime = state.period > regulation
+        wentToOvertime = rules.allowsOvertime && state.period > regulation
         finishedAt = Date()
         self.summary = summary ?? ""
         declaredWinnerRaw = state.declaredWinner?.rawValue ?? -1

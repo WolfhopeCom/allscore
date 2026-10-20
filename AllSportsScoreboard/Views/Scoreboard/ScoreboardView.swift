@@ -148,6 +148,7 @@ struct ScoreboardView: View {
         case .baseball: return 150 + extra
         case .rally, .tennis: return 132 + extra
         case .combat: return 132 + extra
+        case .cancellation: return 132 + extra
         case .points:
             if session.clockEnabled {
                 return (session.rules.tracksPossession ? 132 : 124) + extra

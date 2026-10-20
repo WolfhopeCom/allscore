@@ -36,11 +36,13 @@ enum ScoringModel {
     case baseball
     /// Timed rounds with optional 10-point-must scorecards.
     case combat
+    /// Innings where both sides throw, then only the difference counts (cornhole).
+    case cancellation
 
     /// Scoring can move these sports to a new set / half-inning, so undo must restore it.
     var undoRestoresFlow: Bool {
         switch self {
-        case .rally, .tennis, .baseball: return true
+        case .rally, .tennis, .baseball, .cancellation: return true
         case .points, .combat: return false
         }
     }

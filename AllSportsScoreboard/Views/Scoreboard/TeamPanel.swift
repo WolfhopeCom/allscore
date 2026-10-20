@@ -184,6 +184,7 @@ struct TeamPanel: View {
         case .combat: return "Double-tap to score the round 10-9 for this fighter."
         case .baseball: return "Double-tap to add a run. Swipe down to remove one."
         case .points: return "Double-tap to add \(rules.tapPoints). Swipe up or down to adjust."
+        case .cancellation: return "Double-tap to add a bag on the board to this inning. Use End Inning to score it."
         }
     }
 

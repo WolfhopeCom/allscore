@@ -290,9 +290,19 @@ struct MatchInfoView: View {
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.7)
             }
+        case .cancellation:
+            setSummary(main: session.state.match.points.map(String.init).joined(separator: "–"), caption: "THIS INNING", call: inningCall)
         case .points:
             EmptyView()
         }
+    }
+
+    /// "BLUE +2", "CANCELS" or "FIRST TO 21" under the inning tally.
+    private var inningCall: String? {
+        if let result = session.inningResult {
+            return "\(session.teamName(result.side).uppercased()) +\(result.points)"
+        }
+        return session.state.match.points == [0, 0] ? "FIRST TO \(session.cornholeTarget)" : "CANCELS"
     }
 
     private func setSummary(main: String, caption: String, call: String?) -> some View {

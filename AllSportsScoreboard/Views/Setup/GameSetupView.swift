@@ -115,6 +115,21 @@ struct GameRulesSection: View {
             }
             .listRowBackground(theme.panel)
 
+        case .cancellation:
+            Section {
+                Picker("Play to", selection: $config.pointsToWin) {
+                    ForEach([11, 15, 21], id: \.self) { points in
+                        Text("\(points)").tag(points)
+                    }
+                }
+                .pickerStyle(.segmented)
+            } header: {
+                Text("Game")
+            } footer: {
+                Text("Tap +1 for each bag on the board and +3 for each bag in the hole, then End Inning. Only the difference counts, for the team that threw better. First to \(config.pointsToWin) at the end of an inning wins.")
+            }
+            .listRowBackground(theme.panel)
+
         case .combat:
             Section {
                 Stepper(value: $config.periodCount, in: 1...12) {

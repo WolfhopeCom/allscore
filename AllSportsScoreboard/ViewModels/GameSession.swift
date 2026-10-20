@@ -136,7 +136,7 @@ final class GameSession: Identifiable {
     var isClockRunning: Bool { state.clock.isRunning }
     var regulationPeriods: Int { max(1, state.config.periodCount) }
     var isOvertime: Bool { state.period > regulationPeriods }
-    var showsPeriod: Bool { regulationPeriods > 1 || isOvertime || model == .baseball }
+    var showsPeriod: Bool { regulationPeriods > 1 || isOvertime || model == .baseball || model == .cancellation }
     var canUndo: Bool { !state.undoStack.isEmpty && state.phase != .final }
     var canSwapSides: Bool { rules.allowsSwapSides }
 
@@ -169,7 +169,7 @@ final class GameSession: Identifiable {
         case .pregame:
             return "Pre-Game"
         case .live:
-            if model == .baseball { return periodTitle }
+            if model == .baseball || model == .cancellation { return periodTitle }
             if !clockEnabled { return "Live" }
             return state.clock.isRunning ? "Live" : "Paused"
         case .periodBreak:
@@ -199,6 +199,8 @@ final class GameSession: Identifiable {
             return state.phase == .pregame ? .startGame("Start Match") : .none
         case .baseball:
             return state.phase == .pregame ? .startGame("Play Ball") : .endHalfInning(periodTitle.replacingOccurrences(of: " of the ", with: " "))
+        case .cancellation:
+            return state.phase == .pregame && state.match.points == [0, 0] ? .startGame("Start Game") : .endHalfInning("Inning")
         case .points, .combat:
             break
         }
@@ -291,7 +293,7 @@ final class GameSession: Identifiable {
         switch model {
         case .rally: return "\(state.match.points[side.rawValue])"
         case .tennis: return tennisPointText(side)
-        case .points, .baseball, .combat: return "\(state.score(side))"
+        case .points, .baseball, .combat, .cancellation: return "\(state.score(side))"
         }
     }
 
@@ -302,6 +304,7 @@ final class GameSession: Identifiable {
         case .tennis: tennisPoint(for: side)
         case .combat: scoreRound(winner: side, margin: points)
         case .points, .baseball: addRegularPoints(points, to: side)
+        case .cancellation: addInningPoints(points, to: side)
         }
     }
 
@@ -364,7 +367,8 @@ final class GameSession: Identifiable {
             environment.feedback(.denied)
             return
         }
-        let current = model == .rally ? state.match.points[side.rawValue] : state.score(side)
+        let tallyModel = model == .rally || model == .cancellation
+        let current = tallyModel ? state.match.points[side.rawValue] : state.score(side)
         guard current > 0 else {
             environment.feedback(.denied)
             return
@@ -374,14 +378,14 @@ final class GameSession: Identifiable {
         let currentModel = model
         update { s in
             s.pushUndo(limit: limit)
-            if currentModel == .rally {
+            if tallyModel {
                 s.match.points[side.rawValue] -= amount
             } else {
                 s.scores[side.rawValue] -= amount
                 if currentModel == .baseball { Self.addToLineScore(&s, side: side, runs: -amount) }
             }
         }
-        scoreBumps[side.rawValue] += 1
+        if !(model == .cancellation) { scoreBumps[side.rawValue] += 1 }
         showFlash(side: side, text: "−\(amount)", isPositive: false)
         environment.feedback(.scoreRemoved)
     }
@@ -433,7 +437,7 @@ final class GameSession: Identifiable {
                 }
             case .tennis:
                 if s.match.inTiebreak && s.match.points == [0, 0] { s.match.tiebreakFirstServer = side }
-            case .points, .baseball, .combat:
+            case .points, .baseball, .combat, .cancellation:
                 break
             }
         }
@@ -465,7 +469,7 @@ final class GameSession: Identifiable {
         case .pauseClock: pauseClock()
         case .startPeriod: advancePeriod(startingClock: true)
         case .endPeriod: endPeriod()
-        case .endHalfInning: endHalfInning()
+        case .endHalfInning: model == .cancellation ? endInning() : endHalfInning()
         case .endGame: endGame()
         case .newGame: rematch()
         case .none: break

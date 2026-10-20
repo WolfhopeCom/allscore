@@ -121,7 +121,7 @@ struct GameState: Codable, Equatable {
         case .baseball:
             possession = .a
             match.lineScore = [[0], [0]]
-        case .points, .combat:
+        case .points, .combat, .cancellation:
             possession = nil
         }
     }

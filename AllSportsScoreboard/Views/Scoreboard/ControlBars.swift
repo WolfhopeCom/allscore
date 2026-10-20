@@ -148,6 +148,10 @@ struct PeriodMenu: View {
                     Button("End \(session.periodTitle)", systemImage: "forward.end") {
                         session.endHalfInning()
                     }
+                case .cancellation:
+                    Button("End \(session.periodTitle)", systemImage: "forward.end") {
+                        session.endInning()
+                    }
                 }
                 if session.model == .combat {
                     Divider()
@@ -215,7 +219,7 @@ private extension PeriodMenu {
         switch session.model {
         case .rally, .tennis: return "End Match"
         case .combat: return "End Fight (Decision)"
-        case .points, .baseball: return "End Game"
+        case .points, .baseball, .cancellation: return "End Game"
         }
     }
 }

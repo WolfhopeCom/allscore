@@ -5,7 +5,7 @@ enum SportCatalog {
     /// Sports shown on the home screen, in order.
     static let all: [SportKind] = [
         .basketball, .football, .soccer, .hockey, .lacrosse, .baseball, .volleyball,
-        .tennis, .tableTennis, .badminton, .pickleball, .boxing, .wrestling, .bucketGolf, .custom
+        .tennis, .tableTennis, .badminton, .pickleball, .boxing, .wrestling, .bucketGolf, .cornhole, .custom
     ]
 
     static func rules(for config: GameConfig) -> any SportRules {
@@ -24,6 +24,7 @@ enum SportCatalog {
         case .boxing: return BoxingRules()
         case .wrestling: return WrestlingRules()
         case .bucketGolf: return BucketGolfRules()
+        case .cornhole: return CornholeRules()
         case .custom: return CustomRules(config: config)
         }
     }
@@ -52,6 +53,7 @@ enum SportCatalog {
         case .boxing: defaults = BoxingRules().defaults
         case .wrestling: defaults = WrestlingRules().defaults
         case .bucketGolf: defaults = BucketGolfRules().defaults
+        case .cornhole: defaults = CornholeRules().defaults
         case .custom: defaults = CustomRules.standardDefaults
         }
         return GameConfig(

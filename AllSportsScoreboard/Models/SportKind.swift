@@ -17,6 +17,7 @@ enum SportKind: String, Codable, CaseIterable, Identifiable {
     case boxing
     case wrestling
     case bucketGolf
+    case cornhole
     case custom
 
     var id: String { rawValue }

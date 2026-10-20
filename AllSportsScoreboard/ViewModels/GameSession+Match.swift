@@ -405,6 +405,8 @@ extension GameSession {
                 TeamBadge(title: "SETS", value: "\(state.score(side))"),
                 TeamBadge(title: "GAMES", value: "\(state.match.games[side.rawValue])")
             ]
+        case .cancellation:
+            return [TeamBadge(title: "INNING", value: "\(state.match.points[side.rawValue])")]
         case .points, .baseball, .combat:
             return []
         }
@@ -428,6 +430,8 @@ extension GameSession {
             }
         case .combat:
             return state.match.cards.map { "R\($0.round) \($0.points[0])–\($0.points[1])" }
+        case .cancellation:
+            return state.match.cards.map { "\($0.points[0])–\($0.points[1])" }
         case .points, .baseball:
             return []
         }
@@ -446,8 +450,79 @@ extension GameSession {
             return "Hits \(hits[0])–\(hits[1]) · Errors \(errors[0])–\(errors[1])"
         case .combat:
             return state.match.cards.isEmpty ? nil : "Decision · " + completedSetLines.joined(separator: ", ")
+        case .cancellation:
+            let innings = state.match.cards.count
+            return "First to \(cornholeTarget) · \(innings) inning\(innings == 1 ? "" : "s")"
         case .points:
             return nil
+        }
+    }
+}
+
+// MARK: - Cornhole (cancellation scoring)
+
+extension GameSession {
+    /// Points needed to win (21 unless changed in setup).
+    var cornholeTarget: Int { state.config.pointsToWin > 1 ? state.config.pointsToWin : 21 }
+
+    /// What ending the inning now would do: the team that's ahead in this inning and by how much.
+    var inningResult: (side: TeamSide, points: Int)? {
+        let tally = state.match.points
+        guard tally[0] != tally[1] else { return nil }
+        return tally[0] > tally[1] ? (.a, tally[0] - tally[1]) : (.b, tally[1] - tally[0])
+    }
+
+    /// A bag on the board (+1) or in the hole (+3) during the current inning.
+    func addInningPoints(_ points: Int, to side: TeamSide) {
+        let tally = state.match.points[side.rawValue]
+        guard tally + points <= CornholeRules.maxInningPoints else {
+            environment.feedback(.denied)
+            return
+        }
+        let limit = undoLimit
+        update { s in
+            s.pushUndo(limit: limit)
+            s.match.points[side.rawValue] += points
+            if s.phase == .pregame { s.phase = .live }
+        }
+        showFlash(side: side, text: "+\(points)", isPositive: true)
+        environment.feedback(.score(points))
+    }
+
+    /// Cancels the two tallies, gives the difference to the better team, and ends the game
+    /// if that takes them to the target.
+    func endInning() {
+        guard model == .cancellation, state.phase != .final else { return }
+        let tally = state.match.points
+        let result = inningResult
+        let target = cornholeTarget
+        let cap = maxScore
+        let limit = undoLimit
+        var winner: TeamSide?
+        update { s in
+            s.pushUndo(limit: limit)
+            if let result {
+                s.scores[result.side.rawValue] = min(s.scores[result.side.rawValue] + result.points, cap)
+                if s.scores[result.side.rawValue] >= target { winner = result.side }
+            }
+            s.match.cards.append(RoundCard(round: s.period, points: tally))
+            s.match.points = [0, 0]
+            if let winner {
+                s.declaredWinner = winner
+                s.phase = .final
+            } else {
+                s.phase = .live
+                s.period += 1
+            }
+        }
+        if let result {
+            bumpScore(result.side)
+            showFlash(side: result.side, text: "+\(result.points)", isPositive: true)
+        }
+        if winner != nil {
+            completeGame(playSound: true)
+        } else {
+            environment.feedback(.periodEnd)
         }
     }
 }
