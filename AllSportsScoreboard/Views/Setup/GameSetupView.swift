@@ -170,7 +170,7 @@ struct GameRulesSection: View {
             } header: {
                 Text("Scoreboard")
             } footer: {
-                Text("Name it for your game: cornhole, darts, pickleball, trivia night…")
+                Text("Name it for your game: darts, shuffleboard, spikeball, trivia night…")
             }
             .listRowBackground(theme.panel)
         }

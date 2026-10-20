@@ -406,7 +406,7 @@ extension GameSession {
                 TeamBadge(title: "GAMES", value: "\(state.match.games[side.rawValue])")
             ]
         case .cancellation:
-            return [TeamBadge(title: "INNING", value: "\(state.match.points[side.rawValue])")]
+            return [TeamBadge(title: "THIS INNING", value: "\(state.match.points[side.rawValue])")]
         case .points, .baseball, .combat:
             return []
         }
