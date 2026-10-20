@@ -100,6 +100,17 @@ final class PlayerGameSession: Identifiable {
 
     var winnerNames: [String] { state.leaders.map { config.playerName($0) } }
 
+    /// The final leaderboard as a short message for sharing.
+    var shareText: String {
+        var lines = ["Bucket Golf · \(config.holes) holes · par \(config.coursePar)"]
+        for (place, player) in state.standings.enumerated() {
+            lines.append("\(place + 1). \(config.playerName(player)) \(state.total(player)) (\(parText(player)))")
+        }
+        lines.append("")
+        lines.append("Kept with All-Sports Scoreboard: \(ShareResultButton.siteURL)")
+        return lines.joined(separator: "\n")
+    }
+
     var standingsSummary: String {
         state.standings.map { "\(config.playerName($0)) \(state.total($0)) (\(parText($0)))" }.joined(separator: " · ")
     }

@@ -486,6 +486,10 @@ private struct PlayerFinalOverlay: View {
                     .shadow(color: theme.clock.opacity(0.25 * theme.glow), radius: 40)
             )
             .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(theme.clock.opacity(0.35)))
+            .overlay(alignment: .topTrailing) {
+                ShareResultButton(text: session.shareText)
+                    .padding(12)
+            }
             .padding(20)
             .scaleEffect(appeared ? 1 : 0.92)
             .opacity(appeared ? 1 : 0)

@@ -92,3 +92,28 @@ final class CornholeTests: XCTestCase {
         XCTAssertEqual(record.scoreA, 14)
     }
 }
+
+@MainActor
+final class ShareTextTests: XCTestCase {
+    func testFinishedGameShareTextNamesTheWinner() {
+        var config = SportCatalog.defaultConfig(for: .basketball)
+        config.teamA = TeamConfig(name: "Lions", color: .gold)
+        config.teamB = TeamConfig(name: "Hawks", color: .blue)
+        var state = GameState(config: config)
+        state.scores = [92, 88]
+        state.phase = .final
+        let text = GameSession(state: state, environment: .silent).shareText
+        XCTAssertTrue(text.contains("Lions 92 – 88 Hawks"))
+        XCTAssertTrue(text.contains("Lions wins!"))
+        XCTAssertTrue(text.contains("wolfhopecom.github.io"))
+    }
+
+    func testBucketGolfShareTextListsStandings() {
+        var config = PlayerGameConfig.standard
+        config.players = [PlayerConfig(name: "Sam", color: .gold), PlayerConfig(name: "Riley", color: .green)]
+        config.holes = 3
+        let session = PlayerGameSession(state: PlayerGameState(config: config), environment: .silent)
+        XCTAssertTrue(session.shareText.hasPrefix("Bucket Golf · 3 holes · par 9"))
+        XCTAssertTrue(session.shareText.contains("1. Sam"))
+    }
+}

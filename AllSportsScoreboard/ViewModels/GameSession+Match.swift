@@ -526,3 +526,20 @@ extension GameSession {
         }
     }
 }
+
+// MARK: - Sharing
+
+extension GameSession {
+    /// The result as a short message: sport, score, how it ended, and where to get the app.
+    var shareText: String {
+        var lines = ["\(rules.name) · \(statusText)"]
+        lines.append("\(teamName(.a)) \(score(.a)) – \(score(.b)) \(teamName(.b))")
+        if let winner = state.winner {
+            lines.append("\(teamName(winner)) wins!")
+        }
+        if let summary = resultSummary { lines.append(summary) }
+        lines.append("")
+        lines.append("Kept with All-Sports Scoreboard: \(ShareResultButton.siteURL)")
+        return lines.joined(separator: "\n")
+    }
+}
