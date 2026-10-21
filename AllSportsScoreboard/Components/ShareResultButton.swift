@@ -1,12 +1,12 @@
 import SwiftUI
 
 /// A small share button for the final screen: sends the result as text (Messages, a team
-/// group chat, social posts), with a link to the app's website.
+/// group chat, social posts), with a link to the app on the App Store.
 struct ShareResultButton: View {
     let text: String
     @Environment(\.theme) private var theme
 
-    static let siteURL = "https://wolfhopecom.github.io"
+    static let siteURL = "https://apps.apple.com/app/id6819901329"
 
     var body: some View {
         ShareLink(item: text) {

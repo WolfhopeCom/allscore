@@ -105,7 +105,7 @@ final class ShareTextTests: XCTestCase {
         let text = GameSession(state: state, environment: .silent).shareText
         XCTAssertTrue(text.contains("Lions 92 – 88 Hawks"))
         XCTAssertTrue(text.contains("Lions wins!"))
-        XCTAssertTrue(text.contains("wolfhopecom.github.io"))
+        XCTAssertTrue(text.contains("apps.apple.com/app/id6819901329"))
     }
 
     func testBucketGolfShareTextListsStandings() {
