@@ -8,10 +8,12 @@ import AVFoundation
 final class SoundEngine {
     static let shared = SoundEngine()
 
-    private let engine = AVAudioEngine()
+    private var engine = AVAudioEngine()
     private let format: AVAudioFormat
     private var effectPlayers: [AVAudioPlayerNode] = []
-    private let buzzerPlayer = AVAudioPlayerNode()
+    private var buzzerPlayer = AVAudioPlayerNode()
+    /// Sounds being rendered in the background right now.
+    private var rendering: Set<SoundEffect> = []
     private var nextPlayer = 0
     private var cache: [SoundEffect: AVAudioPCMBuffer] = [:]
     private var isSessionConfigured = false
@@ -19,20 +21,15 @@ final class SoundEngine {
 
     private init() {
         format = AVAudioFormat(standardFormatWithSampleRate: SoundSynth.sampleRate, channels: 1)!
-
-        for _ in 0..<5 {
-            let player = AVAudioPlayerNode()
-            engine.attach(player)
-            engine.connect(player, to: engine.mainMixerNode, format: format)
-            effectPlayers.append(player)
-        }
-        engine.attach(buzzerPlayer)
-        engine.connect(buzzerPlayer, to: engine.mainMixerNode, format: format)
-        engine.prepare()
+        buildGraph()
 
         let center = NotificationCenter.default
-        center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+        center.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.restartIfNeeded() }
+        }
+        // Rare, but after a media-services reset the old engine is dead: build a new one.
+        center.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.rebuildAfterReset() }
         }
         center.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
             let rawType = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
@@ -58,6 +55,27 @@ final class SoundEngine {
         try? session.setActive(true)
     }
 
+    /// A fresh engine with the effect pool and the buzzer player attached.
+    private func buildGraph() {
+        let volume = engine.mainMixerNode.outputVolume
+        engine = AVAudioEngine()
+        effectPlayers = (0..<5).map { _ in AVAudioPlayerNode() }
+        buzzerPlayer = AVAudioPlayerNode()
+        for player in effectPlayers + [buzzerPlayer] {
+            engine.attach(player)
+            engine.connect(player, to: engine.mainMixerNode, format: format)
+        }
+        engine.mainMixerNode.outputVolume = volume
+        engine.prepare()
+    }
+
+    private func rebuildAfterReset() {
+        isSessionConfigured = false
+        buildGraph()
+        configureSession(ignoresSilentSwitch: ignoresSilentSwitch)
+        _ = startIfNeeded()
+    }
+
     func setVolume(_ volume: Double) {
         engine.mainMixerNode.outputVolume = Float(min(1, max(0, volume)))
     }
@@ -78,11 +96,25 @@ final class SoundEngine {
         player.play()
     }
 
-    /// Renders sounds ahead of time so the first tap has no synthesis delay.
+    /// Gets everything ready before the first tap: the audio session and engine start now
+    /// (that can take a moment), and the sounds are rendered in the background.
     func prewarm(_ effects: [SoundEffect]) {
-        for effect in effects {
-            _ = buffer(for: effect)
+        if !isSessionConfigured { configureSession(ignoresSilentSwitch: ignoresSilentSwitch) }
+        _ = startIfNeeded()
+        let missing = effects.filter { cache[$0] == nil && !rendering.contains($0) }
+        guard !missing.isEmpty else { return }
+        rendering.formUnion(missing)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let rendered = missing.map { ($0, SoundSynth.render($0)) }
+            await self?.store(rendered)
         }
+    }
+
+    private func store(_ rendered: [(SoundEffect, [Float])]) {
+        for (effect, samples) in rendered where cache[effect] == nil {
+            if let buffer = makeBuffer(samples) { cache[effect] = buffer }
+        }
+        rendering.subtract(rendered.map(\.0))
     }
 
     private func startIfNeeded() -> Bool {
@@ -105,7 +137,12 @@ final class SoundEngine {
 
     private func buffer(for effect: SoundEffect) -> AVAudioPCMBuffer? {
         if let cached = cache[effect] { return cached }
-        let samples = SoundSynth.render(effect)
+        guard let buffer = makeBuffer(SoundSynth.render(effect)) else { return nil }
+        cache[effect] = buffer
+        return buffer
+    }
+
+    private func makeBuffer(_ samples: [Float]) -> AVAudioPCMBuffer? {
         guard !samples.isEmpty,
               let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
               let channel = buffer.floatChannelData?[0]
@@ -116,7 +153,6 @@ final class SoundEngine {
                 channel.update(from: base, count: samples.count)
             }
         }
-        cache[effect] = buffer
         return buffer
     }
 }

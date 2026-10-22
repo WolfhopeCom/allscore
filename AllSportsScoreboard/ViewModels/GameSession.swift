@@ -693,8 +693,22 @@ final class GameSession: Identifiable {
     /// Leaves the final screen to correct something; the game can be finished again.
     func reopen() {
         guard state.phase == .final else { return }
+        let date = Date()
+        let isCombat = model == .combat
+        let periodLength = state.config.periodLength
+        let direction = rules.clockDirection
+        let runsPast = rules.clockRunsPastLength
         update { s in
-            s.phase = .live
+            // A fight ended during the rest between rounds: put the round clock back.
+            if isCombat, s.match.resting || s.clock.length != periodLength {
+                s.clock = GameClock(direction: direction, length: periodLength, runsPastLength: runsPast)
+                s.clock.stopAtLength()
+                s.match.resting = false
+            }
+            // Time already ran out: go back to the break, not to a "0:00 paused" period that
+            // would end the game again (with the horn) the moment Resume is tapped.
+            let expired = s.clock.direction == .countDown && s.clock.hasLimit && s.clock.isExpired(at: date)
+            s.phase = expired ? .periodBreak : .live
             s.declaredWinner = nil
             s.resultNote = nil
         }
@@ -766,8 +780,9 @@ final class GameSession: Identifiable {
     }
 
     func completeGame(playSound: Bool) {
-        environment.recordResult(state, resultSummary)
+        // The horn first: saving to history touches the disk and shouldn't delay it.
         if playSound { environment.feedback(.gameEnd) }
+        environment.recordResult(state, resultSummary)
     }
 
     private func replaceState(with newState: GameState) {

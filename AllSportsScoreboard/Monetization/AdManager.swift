@@ -21,6 +21,8 @@ final class AdManager {
     var showsAds: Bool { isReady && !PurchaseStore.shared.adsRemoved }
 
     @ObservationIgnored private var hasStarted = false
+    /// The consent form was due while a game was on screen; show it once the game is closed.
+    @ObservationIgnored private var consentPending = false
     @ObservationIgnored private var interstitial: InterstitialAd?
     @ObservationIgnored private var isLoadingInterstitial = false
     @ObservationIgnored private let delegate = InterstitialDelegate()
@@ -64,6 +66,12 @@ final class AdManager {
             finishConsent()
             return
         }
+        // Never put a form (or the tracking prompt that follows) over a scoreboard.
+        guard root === UIApplication.rootViewController else {
+            consentPending = true
+            return
+        }
+        consentPending = false
         ConsentForm.loadAndPresentIfRequired(from: root) { [weak self] _ in
             Task { @MainActor in
                 self?.finishConsent()
@@ -105,6 +113,12 @@ final class AdManager {
         }
     }
 
+    /// Call when the menu screens are showing again (a game was just closed).
+    func resumePendingConsent() {
+        guard consentPending else { return }
+        presentConsentIfRequired()
+    }
+
     // MARK: Full-screen ad after a game
 
     /// Call when the user leaves a finished game. May show a full-screen ad, following `InterstitialPacing`.
@@ -118,7 +132,9 @@ final class AdManager {
         guard showsAds else { return }
         let lastShown = defaults.object(forKey: Key.lastShown) as? Date
         guard InterstitialPacing.shouldShow(now: Date(), lastShown: lastShown, finishedGames: finished) else { return }
-        guard let ad = interstitial, let root = UIApplication.topViewController else {
+        // Only over the menu screens, and never while something else is already up.
+        guard let ad = interstitial, let root = UIApplication.topViewController,
+              root === UIApplication.rootViewController else {
             loadInterstitial()
             return
         }
@@ -165,11 +181,16 @@ private final class InterstitialDelegate: NSObject, FullScreenContentDelegate {
 }
 
 extension UIApplication {
-    /// The view controller currently on top, for presenting consent forms and ads.
-    @MainActor static var topViewController: UIViewController? {
+    /// The key window's root view controller (the menu screens).
+    @MainActor static var rootViewController: UIViewController? {
         let scenes = shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let windows = scenes.flatMap(\.windows)
-        var top = (windows.first { $0.isKeyWindow } ?? windows.first)?.rootViewController
+        return (windows.first { $0.isKeyWindow } ?? windows.first)?.rootViewController
+    }
+
+    /// The view controller currently on top, for presenting consent forms and ads.
+    @MainActor static var topViewController: UIViewController? {
+        var top = rootViewController
         while let presented = top?.presentedViewController, !presented.isBeingDismissed {
             top = presented
         }

@@ -197,6 +197,51 @@ struct PlayerGameState: Codable, Equatable {
     }
 }
 
+extension PlayerGameState {
+    private enum CodingKeys: String, CodingKey {
+        case id, config, hole, current, cards, teeOrder, phase, createdAt, undoStack
+    }
+
+    /// Undo steps written to disk. Each holds a whole scorecard, so saving all of them
+    /// would make every shot slower as the round goes on.
+    static let savedUndoSteps = 25
+
+    /// Tolerant decoding: anything missing or added in a later version falls back to a
+    /// sensible value, so an update never drops a round in progress.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let config = try c.decode(PlayerGameConfig.self, forKey: .config)
+        self.init(config: config)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        if let saved = try c.decodeIfPresent([[HoleCard]].self, forKey: .cards),
+           saved.count == self.config.players.count,
+           saved.allSatisfy({ $0.count == self.config.holes }) {
+            cards = saved
+        }
+        hole = min(max(try c.decodeIfPresent(Int.self, forKey: .hole) ?? 1, 1), self.config.holes)
+        current = min(max(try c.decodeIfPresent(Int.self, forKey: .current) ?? 0, 0), playerCount - 1)
+        if let order = try c.decodeIfPresent([Int].self, forKey: .teeOrder), order.sorted() == Array(0..<playerCount) {
+            teeOrder = order
+        }
+        phase = try c.decodeIfPresent(GamePhase.self, forKey: .phase) ?? .pregame
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        undoStack = (try? c.decodeIfPresent([PlayerSnapshot].self, forKey: .undoStack)) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(config, forKey: .config)
+        try c.encode(hole, forKey: .hole)
+        try c.encode(current, forKey: .current)
+        try c.encode(cards, forKey: .cards)
+        try c.encode(teeOrder, forKey: .teeOrder)
+        try c.encode(phase, forKey: .phase)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encode(Array(undoStack.suffix(Self.savedUndoSteps)), forKey: .undoStack)
+    }
+}
+
 /// Golf's names for a hole score against par.
 enum GolfTerm {
     static func name(strokes: Int, par: Int = PlayerGameConfig.par) -> String {

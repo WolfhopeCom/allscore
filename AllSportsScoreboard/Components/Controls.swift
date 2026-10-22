@@ -102,14 +102,15 @@ struct StatusPill: View {
     let text: String
     let tone: StatusTone
     @Environment(\.theme) private var theme
-    @State private var pulsing = false
 
     var body: some View {
         HStack(spacing: 7) {
-            Circle()
-                .fill(dotColor)
-                .frame(width: 8, height: 8)
-                .opacity(tone == .live && pulsing ? 0.3 : 1)
+            // A symbol effect pulses without re-rendering the view every frame, and only
+            // while the game is live, so it costs no battery the rest of the time.
+            Image(systemName: "circle.fill")
+                .font(.system(size: 8))
+                .foregroundStyle(dotColor)
+                .symbolEffect(.pulse, options: .repeating, isActive: tone == .live)
             Text(text.uppercased())
                 .font(.boardLabel(13))
                 .tracking(1.4)
@@ -121,11 +122,6 @@ struct StatusPill: View {
         .frame(height: 30)
         .background(Capsule().fill(theme.control))
         .overlay(Capsule().strokeBorder(theme.controlStroke))
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                pulsing = true
-            }
-        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Game status: \(text)")
     }

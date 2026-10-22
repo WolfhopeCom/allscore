@@ -23,6 +23,8 @@ struct RootView: View {
     @State private var pending: PendingGame?
     @State private var replacement: PendingGame?
     @State private var opensFullScreen = false
+    /// A quick action closed the game; don't follow it with an ad or rating prompt.
+    @State private var skipNextLeftGame = false
     @State private var showsSettingsAsRoot = false
 
     var body: some View {
@@ -130,6 +132,7 @@ struct RootView: View {
     private func perform(_ action: QuickAction) {
         QuickActionRouter.shared.pending = nil
         let wasShowingSomething = isScoreboardPresented || isPlayerBoardPresented || setupSport != nil || showPlayerSetup
+        if isScoreboardPresented || isPlayerBoardPresented { skipNextLeftGame = true }
         isScoreboardPresented = false
         isPlayerBoardPresented = false
         setupSport = nil
@@ -219,6 +222,16 @@ struct RootView: View {
     /// Leaving a finished game is the one moment a full-screen ad may appear (free version only).
     /// It's also the best moment to ask for a rating, and the two never happen together.
     private func leftGame() {
+        if skipNextLeftGame {
+            skipNextLeftGame = false
+            return
+        }
+        defer {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(800))
+                AdManager.shared.resumePendingConsent()
+            }
+        }
         let finishedID: UUID?
         if let session, session.state.phase == .final {
             finishedID = session.state.id
@@ -264,12 +277,16 @@ struct RootView: View {
         switch game {
         case .standard(let config):
             PlayerSessionStore.clear()
-            session = GameSession(state: GameState(config: config))
+            let state = GameState(config: config)
+            SessionStore.save(state)
+            session = GameSession(state: state)
             Feedback.shared.play(.tap)
             isScoreboardPresented = true
         case .players(let config):
             SessionStore.clear()
-            playerSession = PlayerGameSession(state: PlayerGameState(config: config))
+            let state = PlayerGameState(config: config)
+            PlayerSessionStore.save(state)
+            playerSession = PlayerGameSession(state: state)
             Feedback.shared.play(.tap)
             isPlayerBoardPresented = true
         }

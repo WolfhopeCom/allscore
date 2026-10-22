@@ -35,7 +35,7 @@ final class PlayerGameSession: Identifiable {
     private(set) var bump = 0
 
     @ObservationIgnored private let environment: PlayerSessionEnvironment
-    @ObservationIgnored private let undoLimit = 200
+    @ObservationIgnored private let undoLimit = 60
 
     init(state: PlayerGameState, environment: PlayerSessionEnvironment = .live) {
         self.state = state
@@ -197,8 +197,8 @@ final class PlayerGameSession: Identifiable {
             }
         }
         if gameOver {
-            environment.recordResult(state, standingsSummary)
             environment.feedback(.gameEnd)
+            environment.recordResult(state, standingsSummary)
         } else {
             environment.feedback(.periodChange)
         }
@@ -224,8 +224,8 @@ final class PlayerGameSession: Identifiable {
     func endGame() {
         guard state.phase != .final else { return }
         update { $0.phase = .final }
-        environment.recordResult(state, standingsSummary)
         environment.feedback(.gameEnd)
+        environment.recordResult(state, standingsSummary)
     }
 
     func reopen() {
