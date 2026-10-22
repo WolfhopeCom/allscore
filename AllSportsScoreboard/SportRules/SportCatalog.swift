@@ -4,9 +4,13 @@ import Foundation
 enum SportCatalog {
     /// Sports shown on the home screen, in order.
     static let all: [SportKind] = [
-        .basketball, .football, .soccer, .hockey, .lacrosse, .baseball, .volleyball,
-        .tennis, .tableTennis, .badminton, .pickleball, .boxing, .wrestling, .bucketGolf, .cornhole, .custom
+        .basketball, .football, .soccer, .hockey, .baseball, .volleyball,
+        .tennis, .tableTennis, .badminton, .pickleball, .boxing, .wrestling, .bucketGolf, .custom
     ]
+
+    /// Built and tested but not shown yet. Add to `all` (and the Cornhole quick action in
+    /// Info.plist) to release them.
+    static let upcoming: [SportKind] = [.lacrosse, .cornhole]
 
     static func rules(for config: GameConfig) -> any SportRules {
         switch config.sport {

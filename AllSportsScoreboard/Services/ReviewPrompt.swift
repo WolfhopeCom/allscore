@@ -1,10 +1,10 @@
 import Foundation
 
 /// Decides when to ask for an App Store rating: only right after someone leaves a game they
-/// finished (a good moment, never mid-play), on their 3rd, 10th and 30th finished games,
+/// finished (a good moment, never mid-play), on their 1st, 10th and 30th finished games,
 /// and at most once per app version. iOS itself also limits how often the prompt appears.
 enum ReviewPrompt {
-    static let milestones: Set<Int> = [3, 10, 30]
+    static let milestones: Set<Int> = [1, 10, 30]
 
     private enum Key {
         static let finishedGames = "review.finishedGames"

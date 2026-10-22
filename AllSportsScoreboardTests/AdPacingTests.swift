@@ -41,18 +41,18 @@ final class ReviewPromptTests: XCTestCase {
         return defaults
     }
 
-    func testAsksOnThirdFinishedGameOnly() {
+    func testAsksAfterTheFirstFinishedGameThenAtTen() {
         let defaults = freshDefaults()
         let asks = (1...12).map { _ in ReviewPrompt.recordFinishedGame(id: UUID(), version: "1.1", defaults: defaults) }
-        XCTAssertEqual(asks.enumerated().filter(\.element).map { $0.offset + 1 }, [3])
+        // Once per version: the first finished game asks, the 10th doesn't ask again in the same version.
+        XCTAssertEqual(asks.enumerated().filter(\.element).map { $0.offset + 1 }, [1])
     }
 
     func testSameGameIsOnlyCountedOnce() {
         let defaults = freshDefaults()
         let game = UUID()
-        for _ in 0..<5 { _ = ReviewPrompt.recordFinishedGame(id: game, version: "1.1", defaults: defaults) }
-        XCTAssertFalse(ReviewPrompt.recordFinishedGame(id: UUID(), version: "1.1", defaults: defaults))
-        XCTAssertTrue(ReviewPrompt.recordFinishedGame(id: UUID(), version: "1.1", defaults: defaults))
+        XCTAssertTrue(ReviewPrompt.recordFinishedGame(id: game, version: "1.1", defaults: defaults))
+        for _ in 0..<5 { XCTAssertFalse(ReviewPrompt.recordFinishedGame(id: game, version: "1.1", defaults: defaults)) }
     }
 
     func testAsksAgainInANewVersion() {
