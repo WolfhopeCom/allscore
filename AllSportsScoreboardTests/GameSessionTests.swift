@@ -97,8 +97,8 @@ final class GameSessionTests: XCTestCase {
         session.adjustCounter(timeouts, side: .a, by: -1)
         session.advancePeriod() // Q4
         XCTAssertEqual(session.counter(timeouts, .a), 2)
-        session.advancePeriod() // OT
-        XCTAssertEqual(session.counter(timeouts, .a), 3)
+        session.advancePeriod() // OT: high school gives one per overtime period
+        XCTAssertEqual(session.counter(timeouts, .a), 1)
     }
 
     func testCountersRespectTheirRange() {
