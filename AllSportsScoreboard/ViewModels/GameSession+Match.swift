@@ -12,6 +12,8 @@ extension GameSession {
             sideOut(rallyWinner: side, doubles: format.doubles)
             return
         }
+        let counterSpecs = rules.counters
+        let regulation = regulationPeriods
         let limit = undoLimit
         let setsNeeded = setsToWin
         let isDecidingSet = state.period >= regulationPeriods && regulationPeriods > 1
@@ -40,6 +42,8 @@ extension GameSession {
                     s.phase = .final
                 } else {
                     s.period += 1
+                    // New set or game: per-set timeouts come back.
+                    Self.advanceCounters(&s, specs: counterSpecs, from: s.period - 1, to: s.period, regulation: regulation)
                     switch format.nextSetServer {
                     case .alternate: s.match.setFirstServer = s.match.setFirstServer.opponent
                     case .previousWinner: s.match.setFirstServer = side

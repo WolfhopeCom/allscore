@@ -51,7 +51,9 @@ struct BasketballRules: SportRules {
             style: .number,
             highlightAt: 5,
             highlightLabel: "BONUS"
-        )
+        ),
+        // High school (NFHS): five per game, unused ones carry over, one more each overtime.
+        .timeouts(5, reset: .never, overtime: .add(1), asNumber: true)
     ]
 
     let tracksPossession = true

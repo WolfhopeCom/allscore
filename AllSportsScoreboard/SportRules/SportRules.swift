@@ -100,6 +100,35 @@ struct TeamCounterSpec: Identifiable, Hashable {
     /// When the value reaches this, show `highlightLabel` (e.g. 5 fouls → BONUS).
     let highlightAt: Int?
     let highlightLabel: String?
+    /// What happens at the start of each overtime period.
+    var overtime: Overtime = .followReset
+
+    enum Overtime: Hashable {
+        /// Use `reset` as for any other period.
+        case followReset
+        /// Unused ones carry over and each overtime adds this many (high school basketball).
+        case add(Int)
+        /// Each overtime period starts with exactly this many (high school football).
+        case setTo(Int)
+    }
+
+    /// A team timeout tracker: shows remaining timeouts, tap to use one.
+    static func timeouts(_ count: Int, reset: Reset, overtime: Overtime = .followReset, asNumber: Bool = false) -> TeamCounterSpec {
+        TeamCounterSpec(
+            id: "timeouts",
+            title: "Timeouts",
+            shortTitle: "TOL",
+            initialValue: count,
+            // Dots draw one per possible timeout; a number has room for overtime additions.
+            range: 0...(asNumber ? max(count, 9) : count),
+            tapDelta: -1,
+            reset: reset,
+            style: asNumber ? .number : .dots,
+            highlightAt: nil,
+            highlightLabel: nil,
+            overtime: overtime
+        )
+    }
 }
 
 struct SportDefaults {

@@ -39,7 +39,9 @@ struct FootballRules: SportRules {
             reset: .everyHalf,
             style: .dots,
             highlightAt: nil,
-            highlightLabel: nil
+            highlightLabel: nil,
+            // High school overtime: one per team per overtime period.
+            overtime: .setTo(1)
         )
     ]
 

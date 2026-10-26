@@ -55,69 +55,94 @@ struct TeamPanel: View {
 
     // MARK: - Header
 
+    /// Name, possession and tallies on one line when they fit; on a narrow panel (a phone
+    /// in landscape with fouls and timeouts) the tallies move to a second line instead of
+    /// squeezing the team name.
     private func header(rules: any SportRules, color: Color) -> some View {
-        HStack(spacing: 10) {
-            Text(session.teamName(side).uppercased())
-                .font(.boardLabel(compact ? 17 : 20))
-                .tracking(1.6)
-                .foregroundStyle(theme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .onLongPressGesture { onEditTeams() }
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityAction(named: "Edit teams") { onEditTeams() }
-
-            if rules.tracksPossession && session.state.possession == side {
-                Text(rules.possessionName.uppercased())
-                    .font(.boardLabel(10))
-                    .tracking(1)
-                    .foregroundStyle(theme.onClock)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(theme.clock))
-                    .fixedSize()
-                    .layoutPriority(1)
-                    .transition(.scale.combined(with: .opacity))
-                    .accessibilityLabel("Has possession")
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                nameAndPossession(rules: rules)
+                Spacer(minLength: 6)
+                tallies(rules: rules)
             }
+            .frame(height: 30)
 
-            Spacer(minLength: 6)
-
-            ForEach(session.badges(for: side)) { badge in
-                HStack(spacing: 5) {
-                    Text(badge.title)
-                        .font(.boardLabel(10))
-                        .tracking(1)
-                        .foregroundStyle(theme.secondaryText)
-                    Text(badge.value)
-                        .font(.system(size: 16, weight: .bold).monospacedDigit())
-                        .foregroundStyle(theme.primaryText)
-                        .contentTransition(.numericText())
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
+                    nameAndPossession(rules: rules)
+                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 10)
                 .frame(height: 28)
-                .overlay(Capsule().strokeBorder(theme.controlStroke))
-                .fixedSize()
-                .layoutPriority(1)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(badge.title.capitalized): \(badge.value)")
-            }
-
-            ForEach(rules.counters) { spec in
-                CounterChip(
-                    spec: spec,
-                    value: session.counter(spec, side),
-                    onTap: { session.adjustCounter(spec, side: side, by: spec.tapDelta) },
-                    onReverse: { session.adjustCounter(spec, side: side, by: -spec.tapDelta) },
-                    onReset: { session.resetCounter(spec, side: side) }
-                )
-                // Chips keep their full width; the team name scales down instead.
-                .fixedSize()
-                .layoutPriority(1)
+                HStack(spacing: 8) {
+                    Spacer(minLength: 0)
+                    tallies(rules: rules)
+                }
             }
         }
-        .frame(height: 30)
         .animation(.snappy(duration: 0.25), value: session.state.possession)
+    }
+
+    @ViewBuilder
+    private func nameAndPossession(rules: any SportRules) -> some View {
+        Text(session.teamName(side).uppercased())
+            .font(.boardLabel(compact ? 17 : 20))
+            .tracking(1.6)
+            .foregroundStyle(theme.primaryText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .onLongPressGesture { onEditTeams() }
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityAction(named: "Edit teams") { onEditTeams() }
+
+        if rules.tracksPossession && session.state.possession == side {
+            Text(rules.possessionName.uppercased())
+                .font(.boardLabel(10))
+                .tracking(1)
+                .foregroundStyle(theme.onClock)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(theme.clock))
+                .fixedSize()
+                .layoutPriority(1)
+                .transition(.scale.combined(with: .opacity))
+                .accessibilityLabel("Has possession")
+        }
+    }
+
+    @ViewBuilder
+    private func tallies(rules: any SportRules) -> some View {
+        ForEach(session.badges(for: side)) { badge in
+            HStack(spacing: 5) {
+                Text(badge.title)
+                    .font(.boardLabel(10))
+                    .tracking(1)
+                    .foregroundStyle(theme.secondaryText)
+                Text(badge.value)
+                    .font(.system(size: 16, weight: .bold).monospacedDigit())
+                    .foregroundStyle(theme.primaryText)
+                    .contentTransition(.numericText())
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .overlay(Capsule().strokeBorder(theme.controlStroke))
+            .fixedSize()
+            .layoutPriority(1)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(badge.title.capitalized): \(badge.value)")
+        }
+
+        ForEach(rules.counters) { spec in
+            CounterChip(
+                spec: spec,
+                value: session.counter(spec, side),
+                onTap: { session.adjustCounter(spec, side: side, by: spec.tapDelta) },
+                onReverse: { session.adjustCounter(spec, side: side, by: -spec.tapDelta) },
+                onReset: { session.resetCounter(spec, side: side) }
+            )
+            // Chips keep their full width; the team name scales down instead.
+            .fixedSize()
+            .layoutPriority(1)
+        }
     }
 
     // MARK: - Score

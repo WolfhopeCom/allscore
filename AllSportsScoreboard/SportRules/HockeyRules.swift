@@ -23,6 +23,9 @@ struct HockeyRules: SportRules {
 
     let scoringActions = [ScoreAction(points: 1, caption: "Goal")]
 
+    /// One per team per game (NHL and high school), none added in overtime.
+    let counters = [TeamCounterSpec.timeouts(1, reset: .never, overtime: .add(0))]
+
     func periodLabel(_ period: Int, regulation: Int) -> String {
         if period <= regulation {
             return Ordinal.string(period).uppercased()

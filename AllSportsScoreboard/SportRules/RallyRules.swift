@@ -28,6 +28,8 @@ struct VolleyballRules: SportRules {
     let periodName = "Set"
     let periodCountOptions = [3, 5]
     let allowsOvertime = false
+    /// Two per team per set (NFHS, NCAA, FIVB).
+    let counters = [TeamCounterSpec.timeouts(2, reset: .everyPeriod)]
     let warningThreshold: TimeInterval? = nil
 
     let model = ScoringModel.rally
@@ -62,6 +64,9 @@ struct TableTennisRules: SportRules {
     init(config: GameConfig? = nil) {
         pointsToWin = config?.pointsToWin ?? 11
     }
+
+    /// One per player or pair per match (ITTF).
+    let counters = [TeamCounterSpec.timeouts(1, reset: .never)]
 
     var defaults: SportDefaults {
         SportDefaults(
@@ -201,6 +206,9 @@ struct PickleballRules: SportRules {
         sideOut = !(config?.rallyScoring ?? false)
         doubles = config?.doubles ?? true
     }
+
+    /// USA Pickleball 10.A: two per game to 11 or 15, three per game to 21.
+    var counters: [TeamCounterSpec] { [.timeouts(pointsToWin >= 21 ? 3 : 2, reset: .everyPeriod)] }
 
     var defaults: SportDefaults {
         SportDefaults(

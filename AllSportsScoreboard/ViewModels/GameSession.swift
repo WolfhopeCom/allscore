@@ -118,6 +118,11 @@ final class GameSession: Identifiable {
     @ObservationIgnored let maxScore = 999
 
     init(state: GameState, environment: SessionEnvironment = .live) {
+        // A game saved by an older version may be missing a newer tally (e.g. timeouts).
+        var state = state
+        for spec in SportCatalog.rules(for: state.config).counters where state.counters[spec.id] == nil {
+            state.counters[spec.id] = [spec.initialValue, spec.initialValue]
+        }
         self.state = state
         self.environment = environment
         // A restored game's clock may have kept running (or expired) while the app was closed.
@@ -654,9 +659,7 @@ final class GameSession: Identifiable {
             s.match.resting = false
             s.match.restCued = false
             if target > old {
-                for spec in rules.counters where Self.shouldReset(spec, from: old, to: target, regulation: config.periodCount) {
-                    s.counters[spec.id] = [spec.initialValue, spec.initialValue]
-                }
+                Self.advanceCounters(&s, specs: rules.counters, from: old, to: target, regulation: config.periodCount)
             }
             if s.phase == .periodBreak || s.phase == .pregame { s.phase = .live }
         }
@@ -674,6 +677,26 @@ final class GameSession: Identifiable {
         case .everyHalf:
             let half = max(1, regulation / 2)
             return (old <= half && new > half) || new > regulation
+        }
+    }
+
+    /// Moving forward from period `old` to `new`: resets per-period tallies (fouls, set
+    /// timeouts) and applies each counter's overtime rule when an overtime period begins.
+    nonisolated static func advanceCounters(_ s: inout GameState, specs: [TeamCounterSpec], from old: Int, to new: Int, regulation: Int) {
+        for spec in specs {
+            var values = s.counters[spec.id] ?? [spec.initialValue, spec.initialValue]
+            let overtimesEntered = max(0, new - max(old, regulation))
+            switch spec.overtime {
+            case .add(let extra) where overtimesEntered > 0:
+                values = values.map { min($0 + extra * overtimesEntered, spec.range.upperBound) }
+            case .setTo(let value) where overtimesEntered > 0:
+                values = [value, value]
+            default:
+                if shouldReset(spec, from: old, to: new, regulation: regulation) {
+                    values = [spec.initialValue, spec.initialValue]
+                }
+            }
+            s.counters[spec.id] = values
         }
     }
 
