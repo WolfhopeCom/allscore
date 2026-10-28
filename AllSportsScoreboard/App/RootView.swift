@@ -199,6 +199,9 @@ struct RootView: View {
         case .lacrosse:
             session = GameSession(state: DemoScene.lacrosse())
             isScoreboardPresented = true
+        case .darts:
+            session = GameSession(state: DemoScene.darts())
+            isScoreboardPresented = true
         case .soccer:
             settings.appearance = .daylight
             session = GameSession(state: DemoScene.soccer())

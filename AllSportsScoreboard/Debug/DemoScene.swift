@@ -5,7 +5,7 @@ import UIKit
 /// Real game states for App Store screenshots, opened with a launch argument such as
 /// `-screenshot basketball`. Debug builds only; never part of the App Store build.
 enum DemoScene: String, CaseIterable {
-    case home, basketball, fullScreen, pickleball, bucketGolf, final, soccer, settings, cornhole, lacrosse
+    case home, basketball, fullScreen, pickleball, bucketGolf, final, soccer, settings, cornhole, lacrosse, darts
 
     static var current: DemoScene? {
         UserDefaults.standard.string(forKey: "screenshot").flatMap(DemoScene.init(rawValue:))
@@ -64,6 +64,21 @@ enum DemoScene: String, CaseIterable {
             RoundCard(round: 3, points: [9, 4]), RoundCard(round: 4, points: [4, 4]),
             RoundCard(round: 5, points: [7, 1])
         ]
+        return state
+    }
+
+    static func darts() -> GameState {
+        var config = SportCatalog.defaultConfig(for: .darts)
+        config.teamA = TeamConfig(name: "Mike", color: .red)
+        config.teamB = TeamConfig(name: "Jess", color: .green)
+        var state = GameState(config: config)
+        state.phase = .live
+        state.period = 6
+        state.scores = [57, 40]
+        // 20, 19, 18, 17, 16, 15, Bull
+        state.match.marks = [[3, 3, 3, 1, 0, 2, 1], [3, 2, 3, 3, 3, 0, 0]]
+        state.possession = .a
+        state.match.dartsThrown = 1
         return state
     }
 

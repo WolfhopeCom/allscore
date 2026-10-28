@@ -411,7 +411,7 @@ extension GameSession {
             ]
         case .cancellation:
             return [TeamBadge(title: "THIS INNING", value: "\(state.match.points[side.rawValue])")]
-        case .points, .baseball, .combat:
+        case .points, .baseball, .combat, .cricket:
             return []
         }
     }
@@ -436,7 +436,7 @@ extension GameSession {
             return state.match.cards.map { "R\($0.round) \($0.points[0])–\($0.points[1])" }
         case .cancellation:
             return state.match.cards.map { "\($0.points[0])–\($0.points[1])" }
-        case .points, .baseball:
+        case .points, .baseball, .cricket:
             return []
         }
     }
@@ -457,6 +457,8 @@ extension GameSession {
         case .cancellation:
             let innings = state.match.cards.count
             return "First to \(cornholeTarget) · \(innings) inning\(innings == 1 ? "" : "s")"
+        case .cricket:
+            return "Cricket · \(state.period) round\(state.period == 1 ? "" : "s")"
         case .points:
             return nil
         }

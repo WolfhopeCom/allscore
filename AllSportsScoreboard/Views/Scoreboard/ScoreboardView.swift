@@ -102,7 +102,9 @@ struct ScoreboardView: View {
 
     @ViewBuilder
     private func board(landscape: Bool, size: CGSize) -> some View {
-        if landscape {
+        if session.model == .cricket {
+            CricketBoard(session: session, landscape: landscape)
+        } else if landscape {
             HStack(spacing: 12) {
                 teamPanel(.a, compact: false)
                 ClockPanel(
@@ -149,6 +151,7 @@ struct ScoreboardView: View {
         case .rally, .tennis: return 132 + extra
         case .combat: return 132 + extra
         case .cancellation: return 132 + extra
+        case .cricket: return 0
         case .points:
             if session.clockEnabled {
                 return (session.rules.tracksPossession ? 132 : 124) + extra

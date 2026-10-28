@@ -38,11 +38,13 @@ enum ScoringModel {
     case combat
     /// Innings where both sides throw, then only the difference counts (cornhole).
     case cancellation
+    /// Darts cricket: close 15–20 and the bull with three marks each, score on open numbers.
+    case cricket
 
     /// Scoring can move these sports to a new set / half-inning, so undo must restore it.
     var undoRestoresFlow: Bool {
         switch self {
-        case .rally, .tennis, .baseball, .cancellation: return true
+        case .rally, .tennis, .baseball, .cancellation, .cricket: return true
         case .points, .combat: return false
         }
     }

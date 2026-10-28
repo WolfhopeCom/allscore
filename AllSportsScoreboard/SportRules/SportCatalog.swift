@@ -5,7 +5,7 @@ enum SportCatalog {
     /// Sports shown on the home screen, in order.
     static let all: [SportKind] = [
         .basketball, .football, .soccer, .hockey, .baseball, .volleyball,
-        .tennis, .tableTennis, .badminton, .pickleball, .boxing, .wrestling, .bucketGolf, .custom
+        .tennis, .tableTennis, .badminton, .pickleball, .boxing, .wrestling, .bucketGolf, .darts, .custom
     ]
 
     /// Built and tested but not shown yet. Add to `all` (and the Cornhole quick action in
@@ -29,6 +29,7 @@ enum SportCatalog {
         case .wrestling: return WrestlingRules()
         case .bucketGolf: return BucketGolfRules()
         case .cornhole: return CornholeRules()
+        case .darts: return CricketDartsRules()
         case .custom: return CustomRules(config: config)
         }
     }
@@ -58,6 +59,7 @@ enum SportCatalog {
         case .wrestling: defaults = WrestlingRules().defaults
         case .bucketGolf: defaults = BucketGolfRules().defaults
         case .cornhole: defaults = CornholeRules().defaults
+        case .darts: defaults = CricketDartsRules().defaults
         case .custom: defaults = CustomRules.standardDefaults
         }
         return GameConfig(

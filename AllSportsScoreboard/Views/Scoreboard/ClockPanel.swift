@@ -292,7 +292,7 @@ struct MatchInfoView: View {
             }
         case .cancellation:
             setSummary(main: session.state.match.points.map(String.init).joined(separator: "–"), caption: "THIS INNING", call: inningCall)
-        case .points:
+        case .points, .cricket:
             EmptyView()
         }
     }

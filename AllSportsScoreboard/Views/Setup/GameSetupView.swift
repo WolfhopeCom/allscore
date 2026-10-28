@@ -130,6 +130,17 @@ struct GameRulesSection: View {
             }
             .listRowBackground(theme.panel)
 
+        case .cricket:
+            Section {
+                LabeledContent("Numbers", value: "15–20 and Bull")
+                LabeledContent("To close a number", value: "3 marks")
+            } header: {
+                Text("Cricket")
+            } footer: {
+                Text("Tap a number for each dart: single = 1 mark, double = 2, triple = 3 (outer bull 1, inner bull 2). Three marks close a number. Extra hits on a number you've closed score its value (bull 25) until your opponent closes it too. Close everything with an equal or higher score to win. Each turn is three darts.")
+            }
+            .listRowBackground(theme.panel)
+
         case .combat:
             Section {
                 Stepper(value: $config.periodCount, in: 1...12) {
