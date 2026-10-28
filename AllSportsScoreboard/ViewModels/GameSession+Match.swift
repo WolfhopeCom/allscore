@@ -458,7 +458,7 @@ extension GameSession {
             let innings = state.match.cards.count
             return "First to \(cornholeTarget) · \(innings) inning\(innings == 1 ? "" : "s")"
         case .cricket:
-            return "Cricket · \(state.period) round\(state.period == 1 ? "" : "s")"
+            return "Cricket · numbers closed \(closedCount(.a))–\(closedCount(.b))"
         case .points:
             return nil
         }

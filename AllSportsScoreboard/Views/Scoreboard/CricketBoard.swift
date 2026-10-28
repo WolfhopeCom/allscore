@@ -1,53 +1,48 @@
 import SwiftUI
 
-/// The darts cricket scoreboard: each player's marks on either side of the numbers, like a
-/// chalkboard at the bar. Tap a number in the thrower's column for each dart; pick Double
-/// or Triple first for those rings. Three darts and the turn passes automatically.
+/// The darts cricket scoreboard: each team's marks on either side of the numbers, like a
+/// chalkboard at the bar. Tap a number in a team's column for every hit, in any order.
+/// Three hits close a number; the first team to close all seven wins.
 struct CricketBoard: View {
     let session: GameSession
     let landscape: Bool
 
     @Environment(\.theme) private var theme
-    /// The ring for the next dart. Goes back to single after each throw.
-    @State private var multiplier = 1
 
     var body: some View {
         if landscape {
-            // Fixed-width player panels so names, points and the ring buttons always fit;
-            // the numbers get the rest.
+            // Fixed-width team panels so names and counts always fit; the numbers get the rest.
             GeometryReader { geometry in
-                let panelWidth = min(260, max(176, geometry.size.width * 0.26))
+                let panelWidth = min(240, max(150, geometry.size.width * 0.22))
                 HStack(spacing: 12) {
-                    playerPanel(.a, showsInput: true)
+                    teamPanel(.a)
                         .frame(width: panelWidth)
                     targetGrid
                         .frame(maxWidth: .infinity)
-                    playerPanel(.b, showsInput: true)
+                    teamPanel(.b)
                         .frame(width: panelWidth)
                 }
             }
         } else {
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
-                    playerPanel(.a, showsInput: false)
-                    playerPanel(.b, showsInput: false)
+                    teamPanel(.a)
+                    teamPanel(.b)
                 }
-                .frame(height: 132)
+                .frame(height: 140)
                 targetGrid
-                inputBar(enabled: session.phase != .final)
-                    .frame(height: 52)
             }
         }
     }
 
-    // MARK: - Players
+    // MARK: - Teams
 
-    private func playerPanel(_ side: TeamSide, showsInput: Bool) -> some View {
-        let isUp = session.cricketThrower == side && session.phase != .final
+    private func teamPanel(_ side: TeamSide) -> some View {
         let color = theme.color(session.config[team: side].color)
+        let closed = session.closedCount(side)
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
 
-        return VStack(spacing: 8) {
+        return VStack(spacing: 6) {
             HStack(spacing: 6) {
                 RoundedRectangle(cornerRadius: 1.5)
                     .fill(color)
@@ -61,109 +56,28 @@ struct CricketBoard: View {
                 Spacer(minLength: 0)
             }
 
-            Text(session.scoreText(side))
-                .font(.score(landscape ? 64 : 48))
+            Spacer(minLength: 0)
+
+            Text("\(closed)")
+                .font(.score(landscape ? 72 : 56))
                 .foregroundStyle(theme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
                 .contentTransition(.numericText())
                 .shadow(color: color.opacity(0.3 * theme.glow), radius: 14)
-                .accessibilityLabel("\(session.teamName(side)), \(session.scoreText(side)) points")
+                .animation(.snappy(duration: 0.3), value: closed)
 
-            dartsLeft(isUp: isUp)
+            Text("OF 7 CLOSED")
+                .font(.boardLabel(11))
+                .tracking(1.6)
+                .foregroundStyle(theme.secondaryText)
 
-            if showsInput {
-                Spacer(minLength: 0)
-                inputGrid(enabled: isUp)
-            }
+            Spacer(minLength: 0)
         }
         .padding(12)
-        .frame(maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(shape.fill(theme.panel))
-        .overlay(shape.strokeBorder(isUp ? theme.clock.opacity(0.7) : theme.panelStroke, lineWidth: isUp ? 2 : 1))
-        .animation(.snappy(duration: 0.25), value: isUp)
-    }
-
-    /// Three dots for the darts still to throw this turn, shown only for the thrower.
-    private func dartsLeft(isUp: Bool) -> some View {
-        HStack(spacing: 6) {
-            if isUp {
-                ForEach(0..<3, id: \.self) { dart in
-                    Circle()
-                        .fill(dart < session.dartsLeftThisTurn ? theme.clock : theme.tertiaryText.opacity(0.35))
-                        .frame(width: 9, height: 9)
-                }
-                Text("UP")
-                    .font(.boardLabel(11))
-                    .tracking(1.4)
-                    .foregroundStyle(theme.clock)
-            } else {
-                Text(" ").font(.boardLabel(11))
-            }
-        }
-        .frame(height: 14)
+        .overlay(shape.strokeBorder(theme.panelStroke))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isUp ? "Throwing, \(session.dartsLeftThisTurn) darts left" : "")
-    }
-
-    // MARK: - Ring and miss
-
-    private func inputGrid(enabled: Bool) -> some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                ringButton("Double", value: 2, enabled: enabled)
-                ringButton("Triple", value: 3, enabled: enabled)
-            }
-            missButton(enabled: enabled)
-        }
-    }
-
-    private func inputBar(enabled: Bool) -> some View {
-        HStack(spacing: 8) {
-            ringButton("Double", value: 2, enabled: enabled)
-            ringButton("Triple", value: 3, enabled: enabled)
-            missButton(enabled: enabled)
-        }
-    }
-
-    private func ringButton(_ title: String, value: Int, enabled: Bool) -> some View {
-        let isOn = multiplier == value
-        return Button {
-            multiplier = isOn ? 1 : value
-            Feedback.shared.play(.tap)
-        } label: {
-            Text(title.uppercased())
-                .font(.boardLabel(13))
-                .tracking(1.2)
-                .foregroundStyle(isOn ? theme.onClock : theme.primaryText)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(isOn ? theme.clock : theme.control))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(theme.controlStroke))
-        }
-        .buttonStyle(PressableStyle())
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.35)
-        .accessibilityAddTraits(isOn ? .isSelected : [])
-        .accessibilityHint("Applies to the next dart")
-    }
-
-    private func missButton(enabled: Bool) -> some View {
-        Button {
-            multiplier = 1
-            session.throwMiss()
-        } label: {
-            Text("MISS")
-                .font(.boardLabel(13))
-                .tracking(1.2)
-                .foregroundStyle(theme.secondaryText)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(theme.control))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(theme.controlStroke))
-        }
-        .buttonStyle(PressableStyle())
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.35)
-        .accessibilityHint("Records a dart that missed the cricket numbers")
+        .accessibilityLabel("\(session.teamName(side)), \(closed) of 7 numbers closed")
     }
 
     // MARK: - Numbers
@@ -195,40 +109,38 @@ struct CricketBoard: View {
             .minimumScaleFactor(0.5)
             .frame(width: 64)
             .accessibilityLabel(index == Cricket.bullIndex ? "Bull" : Cricket.label(index))
-            .accessibilityValue(dead ? "closed by both" : "")
+            .accessibilityValue(dead ? "closed by both teams" : "")
     }
 
     private func markCell(_ side: TeamSide, _ index: Int) -> some View {
         let marks = session.cricketMarks(side, index)
-        let isUp = session.cricketThrower == side && session.phase != .final
-        let tripleBull = index == Cricket.bullIndex && multiplier == 3
-        let enabled = isUp && !tripleBull
+        let isClosed = marks >= Cricket.marksToClose
+        let playable = session.phase != .final && !isClosed
         let color = theme.color(session.config[team: side].color)
 
         return Button {
-            session.throwDart(at: index, multiplier: multiplier)
-            multiplier = 1
+            session.addMark(side, at: index)
         } label: {
             MarkGlyph(marks: marks)
-                .stroke(marks >= Cricket.marksToClose ? color : theme.primaryText, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(isClosed ? color : theme.primaryText, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .aspectRatio(1, contentMode: .fit)
                 .padding(5)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(isUp ? theme.control : theme.control.opacity(0.4))
+                        .fill(playable ? theme.control : theme.control.opacity(0.4))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(isUp ? theme.controlStroke : .clear)
+                        .strokeBorder(playable ? theme.controlStroke : .clear)
                 )
                 .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle(scale: 0.94))
-        .disabled(!enabled)
+        .disabled(!playable)
         .accessibilityLabel("\(session.teamName(side)), \(Cricket.label(index))")
-        .accessibilityValue(marks >= Cricket.marksToClose ? "closed" : "\(marks) of 3 marks")
-        .accessibilityHint(isUp ? "Records a \(multiplier == 3 ? "triple" : multiplier == 2 ? "double" : "single") on \(Cricket.label(index))" : "")
+        .accessibilityValue(isClosed ? "closed" : "\(marks) of 3 hits")
+        .accessibilityHint(playable ? "Adds a hit" : "")
     }
 }
 

@@ -46,8 +46,6 @@ struct MatchState: Codable, Equatable {
     // Darts cricket
     /// Marks (0–3) per side for 20, 19, 18, 17, 16, 15 and the bull.
     var marks: [[Int]] = [Array(repeating: 0, count: 7), Array(repeating: 0, count: 7)]
-    /// Darts thrown so far in the current turn (0–2; the third ends the turn).
-    var dartsThrown = 0
 
     // Boxing / MMA
     var cards: [RoundCard] = []
@@ -128,9 +126,7 @@ struct GameState: Codable, Equatable {
         case .baseball:
             possession = .a
             match.lineScore = [[0], [0]]
-        case .cricket:
-            possession = .a
-        case .points, .combat, .cancellation:
+        case .points, .combat, .cancellation, .cricket:
             possession = nil
         }
     }
@@ -265,7 +261,7 @@ extension MatchState {
     private enum CodingKeys: String, CodingKey {
         case points, games, sets, setFirstServer, serverNumber, inTiebreak, tiebreakFirstServer
         case isBottom, outs, balls, strikes, lineScore, cards, resting, restCued
-        case marks, dartsThrown
+        case marks
     }
 
     /// Tolerant decoding: fields added later fall back to their defaults.
@@ -288,7 +284,6 @@ extension MatchState {
         resting = try c.decodeIfPresent(Bool.self, forKey: .resting) ?? resting
         restCued = try c.decodeIfPresent(Bool.self, forKey: .restCued) ?? restCued
         marks = try c.decodeIfPresent([[Int]].self, forKey: .marks) ?? marks
-        dartsThrown = try c.decodeIfPresent(Int.self, forKey: .dartsThrown) ?? dartsThrown
         if marks.count != 2 || marks.contains(where: { $0.count != 7 }) {
             marks = [Array(repeating: 0, count: 7), Array(repeating: 0, count: 7)]
         }
@@ -315,6 +310,5 @@ extension MatchState {
         try c.encode(resting, forKey: .resting)
         try c.encode(restCued, forKey: .restCued)
         try c.encode(marks, forKey: .marks)
-        try c.encode(dartsThrown, forKey: .dartsThrown)
     }
 }

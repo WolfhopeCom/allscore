@@ -137,7 +137,7 @@ struct GameRulesSection: View {
             } header: {
                 Text("Cricket")
             } footer: {
-                Text("Tap a number for each dart: single = 1 mark, double = 2, triple = 3 (outer bull 1, inner bull 2). Three marks close a number. Extra hits on a number you've closed score its value (bull 25) until your opponent closes it too. Close everything with an equal or higher score to win. Each turn is three darts.")
+                Text("Tap a number in a team's column for each hit. Three hits close it. The first team to close 20 down to 15 and the bull wins.")
             }
             .listRowBackground(theme.panel)
 

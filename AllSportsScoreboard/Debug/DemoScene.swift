@@ -73,12 +73,9 @@ enum DemoScene: String, CaseIterable {
         config.teamB = TeamConfig(name: "Jess", color: .green)
         var state = GameState(config: config)
         state.phase = .live
-        state.period = 6
-        state.scores = [57, 40]
         // 20, 19, 18, 17, 16, 15, Bull
         state.match.marks = [[3, 3, 3, 1, 0, 2, 1], [3, 2, 3, 3, 3, 0, 0]]
-        state.possession = .a
-        state.match.dartsThrown = 1
+        state.scores = [3, 4]
         return state
     }
 

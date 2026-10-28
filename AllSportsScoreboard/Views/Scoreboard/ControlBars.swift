@@ -153,9 +153,7 @@ struct PeriodMenu: View {
                         session.endInning()
                     }
                 case .cricket:
-                    Button("Next: \(session.teamName(session.cricketThrower.opponent))", systemImage: "forward.fill") {
-                        session.endCricketTurn()
-                    }
+                    EmptyView()
                 }
                 if session.model == .combat {
                     Divider()

@@ -33,8 +33,6 @@ enum PrimaryAction: Equatable {
     case endHalfInning(String)
     case endGame
     case newGame
-    /// Darts: hand the board to the other player.
-    case nextPlayer(String)
     /// Nothing sensible to put here (e.g. mid-set in volleyball): the button is hidden.
     case none
 
@@ -49,7 +47,6 @@ enum PrimaryAction: Equatable {
         case .endHalfInning(let name): return "End \(name)"
         case .endGame: return "End Game"
         case .newGame: return "New Game"
-        case .nextPlayer(let name): return "Next: \(name)"
         case .none: return ""
         }
     }
@@ -61,7 +58,6 @@ enum PrimaryAction: Equatable {
         case .endPeriod, .endHalfInning: return "forward.end.fill"
         case .endGame: return "flag.checkered"
         case .newGame: return "arrow.counterclockwise"
-        case .nextPlayer: return "forward.fill"
         case .none: return ""
         }
     }
@@ -145,7 +141,7 @@ final class GameSession: Identifiable {
     var isClockRunning: Bool { state.clock.isRunning }
     var regulationPeriods: Int { max(1, state.config.periodCount) }
     var isOvertime: Bool { state.period > regulationPeriods }
-    var showsPeriod: Bool { regulationPeriods > 1 || isOvertime || model == .baseball || model == .cancellation || model == .cricket }
+    var showsPeriod: Bool { regulationPeriods > 1 || isOvertime || model == .baseball || model == .cancellation }
     var canUndo: Bool { !state.undoStack.isEmpty && state.phase != .final }
     var canSwapSides: Bool { rules.allowsSwapSides }
 
@@ -178,7 +174,7 @@ final class GameSession: Identifiable {
         case .pregame:
             return "Pre-Game"
         case .live:
-            if model == .baseball || model == .cancellation || model == .cricket { return periodTitle }
+            if model == .baseball || model == .cancellation { return periodTitle }
             if !clockEnabled { return "Live" }
             return state.clock.isRunning ? "Live" : "Paused"
         case .periodBreak:
@@ -211,7 +207,7 @@ final class GameSession: Identifiable {
         case .cancellation:
             return state.phase == .pregame && state.match.points == [0, 0] ? .startGame("Start Game") : .endHalfInning("Inning")
         case .cricket:
-            return .nextPlayer(teamName(cricketThrower.opponent))
+            return .none
         case .points, .combat:
             break
         }
@@ -484,7 +480,6 @@ final class GameSession: Identifiable {
         case .endHalfInning: model == .cancellation ? endInning() : endHalfInning()
         case .endGame: endGame()
         case .newGame: rematch()
-        case .nextPlayer: endCricketTurn()
         case .none: break
         }
     }
