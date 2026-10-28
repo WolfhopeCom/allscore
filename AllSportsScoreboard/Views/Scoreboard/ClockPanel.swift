@@ -13,6 +13,8 @@ struct ClockPanel: View {
     let session: GameSession
     let layout: Layout
     let isFullScreen: Bool
+    /// Grows the clock and period on big screens (iPad), where the default sizes look lost.
+    var scale: CGFloat = 1
     let onAdjust: () -> Void
     let onExitFullScreen: () -> Void
 
@@ -28,10 +30,10 @@ struct ClockPanel: View {
                 VStack(spacing: 14) {
                     Spacer(minLength: 0)
                     if session.clockEnabled {
-                        ClockFace(session: session, size: isFullScreen ? 96 : 74, onAdjust: onAdjust)
+                        ClockFace(session: session, size: (isFullScreen ? 96 : 74) * scale, onAdjust: onAdjust)
                     }
                     if session.showsPeriod {
-                        PeriodBadge(session: session, size: isFullScreen ? 40 : 32)
+                        PeriodBadge(session: session, size: (isFullScreen ? 40 : 32) * scale)
                     }
                     if !session.clockEnabled && !session.showsPeriod {
                         titleBadge(rules.name)
@@ -49,12 +51,12 @@ struct ClockPanel: View {
             case .row:
                 HStack(spacing: 14) {
                     if session.clockEnabled {
-                        ClockFace(session: session, size: isFullScreen ? 84 : 58, onAdjust: onAdjust)
+                        ClockFace(session: session, size: (isFullScreen ? 84 : 58) * scale, onAdjust: onAdjust)
                             .frame(maxWidth: .infinity)
                     }
                     VStack(spacing: 8) {
                         if session.showsPeriod {
-                            PeriodBadge(session: session, size: isFullScreen ? 34 : 26)
+                            PeriodBadge(session: session, size: (isFullScreen ? 34 : 26) * scale)
                         } else if !session.clockEnabled {
                             titleBadge(rules.name)
                         }
