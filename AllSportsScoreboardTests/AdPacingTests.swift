@@ -84,3 +84,42 @@ final class LacrosseTests: XCTestCase {
         XCTAssertEqual(LacrosseRules(periodCount: 2).periodName, "Half")
     }
 }
+
+final class ThemeUnlockTests: XCTestCase {
+    private func freshDefaults() -> UserDefaults {
+        let name = "ThemeUnlockTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
+    }
+
+    @MainActor
+    func testFreeThemesAreAlwaysUsable() {
+        let settings = AppSettings(store: freshDefaults())
+        for appearance in AppAppearance.allCases where !appearance.isBonus {
+            XCTAssertTrue(settings.canUse(appearance))
+        }
+    }
+
+    @MainActor
+    func testUnlockedThemeIsRememberedAcrossLaunches() {
+        let defaults = freshDefaults()
+        let settings = AppSettings(store: defaults)
+        settings.unlock(.midnight)
+        let relaunched = AppSettings(store: defaults)
+        XCTAssertTrue(relaunched.canUse(.midnight))
+    }
+
+    func testEveryThemeHasAPalette() {
+        for appearance in AppAppearance.allCases {
+            XCTAssertEqual(Theme.make(appearance).appearance, appearance)
+        }
+    }
+
+    @MainActor
+    func testBoardScaleIsOneOnPhonesAndCappedOnTablets() {
+        XCTAssertEqual(ScoreboardView.boardScale(for: CGSize(width: 932, height: 430)), 1)
+        XCTAssertEqual(ScoreboardView.boardScale(for: CGSize(width: 393, height: 852)), 1)
+        XCTAssertEqual(ScoreboardView.boardScale(for: CGSize(width: 1376, height: 1032)), 1.5)
+    }
+}
