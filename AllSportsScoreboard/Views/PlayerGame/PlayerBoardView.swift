@@ -49,11 +49,12 @@ struct PlayerBoardView: View {
         }
         .animation(.easeInOut(duration: 0.35), value: session.phase == .final)
         .onAppear {
-            ScreenAwake.set(settings.keepScreenAwake)
+            updateScreenAwake()
             Task { @MainActor in Feedback.shared.prewarmSounds() }
         }
         .onDisappear { ScreenAwake.set(false) }
-        .onChange(of: session.phase) { ScreenAwake.set(settings.keepScreenAwake && session.phase != .final) }
+        .onChange(of: session.phase) { updateScreenAwake() }
+        .onChange(of: settings.keepScreenAwake) { updateScreenAwake() }
         .sheet(isPresented: $showPlayersSheet) { PlayersEditSheet(session: session) }
         .confirmationDialog("Reset this round?", isPresented: $confirmReset, titleVisibility: .visible) {
             Button("Reset Scores", role: .destructive) { session.resetGame() }
@@ -153,6 +154,11 @@ struct PlayerBoardView: View {
     private func leave() {
         ScreenAwake.set(false)
         onExit()
+    }
+
+    /// Reopening a finished round from Home shouldn't keep the screen from locking.
+    private func updateScreenAwake() {
+        ScreenAwake.set(settings.keepScreenAwake && session.phase != .final)
     }
 }
 
@@ -429,75 +435,87 @@ private struct PlayerFinalOverlay: View {
     @State private var appeared = false
 
     var body: some View {
-        let state = session.state
-        let winners = session.winnerNames
-
         ZStack {
             theme.background.opacity(0.8).ignoresSafeArea()
-            VStack(spacing: 18) {
-                Text("FINAL · \(session.config.holes) HOLES")
-                    .font(.boardLabel(14))
-                    .tracking(5)
-                    .foregroundStyle(theme.clock)
-                Text(winners.count == 1 ? "\(winners[0]) wins" : "Tie: \(winners.joined(separator: " & "))")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(theme.primaryText)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.6)
-
-                VStack(spacing: 6) {
-                    ForEach(Array(state.standings.prefix(8).enumerated()), id: \.element) { rank, index in
-                        HStack(spacing: 10) {
-                            Text("\(rank + 1)")
-                                .font(.system(size: 14, weight: .bold).monospacedDigit())
-                                .foregroundStyle(theme.tertiaryText)
-                                .frame(width: 18)
-                            RoundedRectangle(cornerRadius: 1.5)
-                                .fill(theme.color(session.config.color(index)))
-                                .frame(width: 3, height: 18)
-                            Text(session.config.playerName(index))
-                                .font(.system(size: 17, weight: rank == 0 ? .bold : .medium))
-                                .foregroundStyle(theme.primaryText)
-                                .lineLimit(1)
-                            Spacer()
-                            Text(session.parText(index))
-                                .font(.system(size: 14, weight: .semibold).monospacedDigit())
-                                .foregroundStyle(theme.secondaryText)
-                            Text(session.totalText(index))
-                                .font(.score(24))
-                                .foregroundStyle(theme.primaryText)
-                        }
-                    }
+            // Up to eight players won't fit on a phone in landscape: scroll rather than clip
+            // the buttons off screen.
+            ViewThatFits(in: .vertical) {
+                card
+                ScrollView {
+                    card
                 }
-                .frame(maxWidth: 360)
-
-                HStack(spacing: 10) {
-                    button("Back to Round", symbol: "arrow.uturn.backward", prominent: false) { session.reopen() }
-                    button("Rematch", symbol: "arrow.counterclockwise", prominent: true) { session.rematch() }
-                    button("Home", symbol: "house", prominent: false, action: onHome)
-                }
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .padding(28)
-            .frame(maxWidth: 560)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(theme.panel)
-                    .shadow(color: theme.clock.opacity(0.25 * theme.glow), radius: 40)
-            )
-            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(theme.clock.opacity(0.35)))
-            .overlay(alignment: .topTrailing) {
-                ShareResultButton(text: session.shareText)
-                    .padding(12)
-            }
-            .padding(20)
-            .scaleEffect(appeared ? 1 : 0.92)
-            .opacity(appeared ? 1 : 0)
         }
         .onAppear {
             withAnimation(.spring(duration: 0.55, bounce: 0.3)) { appeared = true }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
+    }
+
+    private var card: some View {
+        let state = session.state
+        let winners = session.winnerNames
+        return VStack(spacing: 18) {
+            Text("FINAL · \(session.config.holes) HOLES")
+                .font(.boardLabel(14))
+                .tracking(5)
+                .foregroundStyle(theme.clock)
+            Text(winners.count == 1 ? "\(winners.joined()) wins" : "Tie: \(winners.joined(separator: " & "))")
+                .font(.system(size: 30, weight: .bold))
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.6)
+
+            VStack(spacing: 6) {
+                ForEach(Array(state.standings.prefix(8).enumerated()), id: \.element) { rank, index in
+                    HStack(spacing: 10) {
+                        Text("\(rank + 1)")
+                            .font(.system(size: 14, weight: .bold).monospacedDigit())
+                            .foregroundStyle(theme.tertiaryText)
+                            .frame(width: 18)
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(theme.color(session.config.color(index)))
+                            .frame(width: 3, height: 18)
+                        Text(session.config.playerName(index))
+                            .font(.system(size: 17, weight: rank == 0 ? .bold : .medium))
+                            .foregroundStyle(theme.primaryText)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(session.parText(index))
+                            .font(.system(size: 14, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(theme.secondaryText)
+                        Text(session.totalText(index))
+                            .font(.score(24))
+                            .foregroundStyle(theme.primaryText)
+                    }
+                }
+            }
+            .frame(maxWidth: 360)
+
+            HStack(spacing: 10) {
+                button("Back to Round", symbol: "arrow.uturn.backward", prominent: false) { session.reopen() }
+                button("Rematch", symbol: "arrow.counterclockwise", prominent: true) { session.rematch() }
+                button("Home", symbol: "house", prominent: false, action: onHome)
+            }
+        }
+        .padding(28)
+        .frame(maxWidth: 560)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(theme.panel)
+                .shadow(color: theme.clock.opacity(0.25 * theme.glow), radius: 40)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(theme.clock.opacity(0.35)))
+        .overlay(alignment: .topTrailing) {
+            ShareResultButton(text: session.shareText)
+                .padding(12)
+        }
+        .padding(20)
+        .scaleEffect(appeared ? 1 : 0.92)
+        .opacity(appeared ? 1 : 0)
     }
 
     private func button(_ title: String, symbol: String, prominent: Bool, action: @escaping () -> Void) -> some View {

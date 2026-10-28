@@ -15,71 +15,15 @@ struct FinalOverlay: View {
             theme.background.opacity(theme.appearance == .daylight ? 0.82 : 0.78)
                 .ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                Text(session.statusText.uppercased())
-                    .font(.boardLabel(14))
-                    .tracking(6)
-                    .foregroundStyle(theme.clock)
-
-                Group {
-                    if let leader {
-                        Text("\(session.teamName(leader)) wins")
-                    } else {
-                        Text("It's a tie")
-                    }
+            // On a short screen (a small iPhone in landscape) the card scrolls instead of
+            // being clipped, so the Home and Rematch buttons are always reachable.
+            ViewThatFits(in: .vertical) {
+                card(leader: leader)
+                ScrollView {
+                    card(leader: leader)
                 }
-                .font(.system(size: 30, weight: .bold))
-                .foregroundStyle(theme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-
-                HStack(alignment: .top, spacing: 28) {
-                    finalScore(.a, isWinner: leader == .a)
-                    Text("–")
-                        .font(.score(48))
-                        .foregroundStyle(theme.tertiaryText)
-                        .padding(.top, 18)
-                    finalScore(.b, isWinner: leader == .b)
-                }
-
-                if let summary = session.resultSummary {
-                    Text(summary)
-                        .font(.system(size: 14, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(theme.secondaryText)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.7)
-                }
-
-                HStack(spacing: 10) {
-                    overlayButton("Back to Game", symbol: "arrow.uturn.backward", prominent: false) {
-                        session.reopen()
-                    }
-                    overlayButton("Rematch", symbol: "arrow.counterclockwise", prominent: true) {
-                        session.rematch()
-                    }
-                    overlayButton("Home", symbol: "house", prominent: false, action: onHome)
-                }
-                .padding(.top, 6)
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .padding(28)
-            .frame(maxWidth: 560)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(theme.panel)
-                    .shadow(color: theme.clock.opacity(0.25 * theme.glow), radius: 40)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(theme.clock.opacity(0.35))
-            )
-            .overlay(alignment: .topTrailing) {
-                ShareResultButton(text: session.shareText)
-                    .padding(12)
-            }
-            .padding(20)
-            .scaleEffect(appeared ? 1 : 0.92)
-            .opacity(appeared ? 1 : 0)
         }
         .onAppear {
             withAnimation(.spring(duration: 0.55, bounce: 0.3)) {
@@ -88,6 +32,74 @@ struct FinalOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
+    }
+
+    private func card(leader: TeamSide?) -> some View {
+        VStack(spacing: 20) {
+            Text(session.statusText.uppercased())
+                .font(.boardLabel(14))
+                .tracking(6)
+                .foregroundStyle(theme.clock)
+
+            Group {
+                if let leader {
+                    Text("\(session.teamName(leader)) wins")
+                } else {
+                    Text("It's a tie")
+                }
+            }
+            .font(.system(size: 30, weight: .bold))
+            .foregroundStyle(theme.primaryText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+
+            HStack(alignment: .top, spacing: 28) {
+                finalScore(.a, isWinner: leader == .a)
+                Text("–")
+                    .font(.score(48))
+                    .foregroundStyle(theme.tertiaryText)
+                    .padding(.top, 18)
+                finalScore(.b, isWinner: leader == .b)
+            }
+
+            if let summary = session.resultSummary {
+                Text(summary)
+                    .font(.system(size: 14, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+            }
+
+            HStack(spacing: 10) {
+                overlayButton("Back to Game", symbol: "arrow.uturn.backward", prominent: false) {
+                    session.reopen()
+                }
+                overlayButton("Rematch", symbol: "arrow.counterclockwise", prominent: true) {
+                    session.rematch()
+                }
+                overlayButton("Home", symbol: "house", prominent: false, action: onHome)
+            }
+            .padding(.top, 6)
+        }
+        .padding(28)
+        .frame(maxWidth: 560)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(theme.panel)
+                .shadow(color: theme.clock.opacity(0.25 * theme.glow), radius: 40)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(theme.clock.opacity(0.35))
+        )
+        .overlay(alignment: .topTrailing) {
+            ShareResultButton(text: session.shareText)
+                .padding(12)
+        }
+        .padding(20)
+        .scaleEffect(appeared ? 1 : 0.92)
+        .opacity(appeared ? 1 : 0)
     }
 
     private func finalScore(_ side: TeamSide, isWinner: Bool) -> some View {
