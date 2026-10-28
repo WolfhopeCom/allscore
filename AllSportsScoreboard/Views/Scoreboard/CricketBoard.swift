@@ -13,14 +13,18 @@ struct CricketBoard: View {
 
     var body: some View {
         if landscape {
-            HStack(spacing: 12) {
-                playerPanel(.a, showsInput: true)
-                    .frame(maxWidth: .infinity)
-                targetGrid
-                    .frame(maxWidth: .infinity)
-                    .layoutPriority(1)
-                playerPanel(.b, showsInput: true)
-                    .frame(maxWidth: .infinity)
+            // Fixed-width player panels so names, points and the ring buttons always fit;
+            // the numbers get the rest.
+            GeometryReader { geometry in
+                let panelWidth = min(260, max(176, geometry.size.width * 0.26))
+                HStack(spacing: 12) {
+                    playerPanel(.a, showsInput: true)
+                        .frame(width: panelWidth)
+                    targetGrid
+                        .frame(maxWidth: .infinity)
+                    playerPanel(.b, showsInput: true)
+                        .frame(width: panelWidth)
+                }
             }
         } else {
             VStack(spacing: 12) {

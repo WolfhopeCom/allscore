@@ -74,7 +74,7 @@ jobs:
               # simctl captures the portrait framebuffer; turn landscape scenes the right way up.
               # (iPad windows stay portrait, so only iPhone shots need turning.)
               if [ "$DEVICE" = iphone ]; then
-                case "$KEY" in home|settings) ;; *) sips -r 270 "$FILE" > /dev/null ;; esac
+                case "$KEY" in home|settings|dartsPortrait) ;; *) sips -r 270 "$FILE" > /dev/null ;; esac
               fi
               sips -g pixelWidth -g pixelHeight "$FILE" | tail -2
             done

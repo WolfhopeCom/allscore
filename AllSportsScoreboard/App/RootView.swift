@@ -199,7 +199,7 @@ struct RootView: View {
         case .lacrosse:
             session = GameSession(state: DemoScene.lacrosse())
             isScoreboardPresented = true
-        case .darts:
+        case .darts, .dartsPortrait:
             session = GameSession(state: DemoScene.darts())
             isScoreboardPresented = true
         case .soccer:
