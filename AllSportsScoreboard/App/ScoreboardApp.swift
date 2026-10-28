@@ -8,7 +8,8 @@ struct ScoreboardApp: App {
 
     var body: some Scene {
         WindowGroup {
-            let theme = Theme.make(settings.appearance)
+            // A bonus theme stops applying if its unlock goes away (e.g. a refunded Remove Ads).
+            let theme = Theme.make(settings.canUse(settings.appearance) ? settings.appearance : .arena)
             RootView()
                 .environment(settings)
                 .environment(\.theme, theme)
