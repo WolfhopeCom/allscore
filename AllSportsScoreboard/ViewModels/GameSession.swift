@@ -62,7 +62,7 @@ enum PrimaryAction: Equatable {
         case .endGame: return "flag.checkered"
         case .newGame: return "arrow.counterclockwise"
         case .nextPlayer: return "forward.fill"
-        case .none: return """"
+        case .none: return ""
         }
     }
 
