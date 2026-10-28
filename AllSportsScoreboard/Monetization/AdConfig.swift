@@ -10,14 +10,20 @@ enum AdConfig {
     #if DEBUG
     static let bannerUnitID = "ca-app-pub-3940256099942544/2435281174"
     static let interstitialUnitID = "ca-app-pub-3940256099942544/4411468910"
+    static let rewardedUnitID = "ca-app-pub-3940256099942544/1712485313"
     #else
     static let bannerUnitID = "ca-app-pub-7157445414631272/8309391895"
     static let interstitialUnitID = "ca-app-pub-7157445414631272/4234415517"
+    // TODO(owner): create a Rewarded ad unit in AdMob (Apps → All-Sports Scoreboard → Ad units →
+    // Add ad unit → Rewarded) and paste its ID here. Until then Release builds show Google's
+    // test video ads for theme unlocks, which work but earn nothing.
+    #warning("Replace AdConfig.rewardedUnitID with the real AdMob rewarded ad unit ID before release.")
+    static let rewardedUnitID = "ca-app-pub-3940256099942544/1712485313"
     #endif
 
     /// True while the Release build still points at Google's test ad units.
     static var usesTestAdUnits: Bool {
-        bannerUnitID.hasPrefix("ca-app-pub-3940256099942544") || interstitialUnitID.hasPrefix("ca-app-pub-3940256099942544")
+        [bannerUnitID, interstitialUnitID, rewardedUnitID].contains { $0.hasPrefix("ca-app-pub-3940256099942544") }
     }
 }
 

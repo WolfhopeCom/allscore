@@ -46,16 +46,27 @@ struct SettingsView: View {
             .listRowBackground(theme.panel)
 
             Section {
-                Picker("Appearance", selection: $settings.appearance) {
-                    ForEach(AppAppearance.allCases) { appearance in
-                        Text(appearance.displayName).tag(appearance)
-                    }
+                ForEach(AppAppearance.allCases) { appearance in
+                    ThemeRow(appearance: appearance)
                 }
+            } header: {
+                Text("Appearance")
+            } footer: {
+                Text(PurchaseStore.shared.adsRemoved
+                     ? "Bonus themes are included with Remove Ads."
+                     : "Unlock a bonus theme for good by watching one short video. Remove Ads includes them all.")
+            }
+            .listRowBackground(theme.panel)
+            .onAppear {
+                if settings.hasLockedAppearances { AdManager.shared.prepareRewarded() }
+            }
+
+            Section {
                 Toggle("Keep Screen Awake", isOn: $settings.keepScreenAwake)
             } header: {
                 Text("Scoreboard")
             } footer: {
-                Text(settings.appearance.detail + ". The screen stays on while a scoreboard is open, then returns to normal.")
+                Text("The screen stays on while a scoreboard is open, then returns to normal.")
             }
             .listRowBackground(theme.panel)
 
@@ -126,6 +137,103 @@ private struct AdsSection: View {
                  : "A one-time purchase removes every ad for good, on all your devices. Ads never appear on the scoreboard during a game.")
         }
         .listRowBackground(theme.panel)
+    }
+}
+
+/// One theme: a swatch preview, its name, and either a checkmark, or (for a locked bonus
+/// theme) an explicit "Watch video" button. Videos only ever play when that button is tapped.
+private struct ThemeRow: View {
+    let appearance: AppAppearance
+    @Environment(AppSettings.self) private var settings
+    @Environment(\.theme) private var theme
+    @State private var showsUnavailable = false
+
+    var body: some View {
+        Group {
+            if settings.canUse(appearance) {
+                let isSelected = settings.appearance == appearance
+                Button(action: select) {
+                    HStack(spacing: 14) {
+                        swatch(isSelected: isSelected)
+                        titles
+                        Spacer(minLength: 8)
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(isSelected ? theme.clock : theme.tertiaryText)
+                            .accessibilityHidden(true)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(appearance.displayName). \(appearance.detail)")
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+            } else {
+                HStack(spacing: 14) {
+                    swatch(isSelected: false)
+                    titles
+                    Spacer(minLength: 8)
+                    Button(action: unlock) {
+                        Label("Watch Video", systemImage: "play.rectangle.fill")
+                            .font(.caption.weight(.semibold))
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(theme.clock)
+                    .accessibilityLabel("Unlock \(appearance.displayName) by watching a short video")
+                }
+            }
+        }
+        .alert("Video Not Available", isPresented: $showsUnavailable) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("There isn't a video ready right now. Check your connection and try again in a moment.")
+        }
+    }
+
+    private func swatch(isSelected: Bool) -> some View {
+        let preview = Theme.make(appearance)
+        return ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(preview.background)
+            Circle()
+                .fill(preview.clock)
+                .frame(width: 12, height: 12)
+        }
+        .frame(width: 38, height: 30)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(isSelected ? theme.clock : theme.controlStroke, lineWidth: isSelected ? 2 : 1)
+        )
+        .accessibilityHidden(true)
+    }
+
+    private var titles: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(appearance.displayName)
+                .foregroundStyle(theme.primaryText)
+            Text(appearance.detail)
+                .font(.caption)
+                .foregroundStyle(theme.secondaryText)
+        }
+    }
+
+    private func select() {
+        settings.appearance = appearance
+        Feedback.shared.play(.tap)
+    }
+
+    private func unlock() {
+        // Captured now: the reward arrives after the video, outside of any view update.
+        let store = settings
+        let earned = appearance
+        let started = AdManager.shared.presentRewarded {
+            store.unlock(earned)
+            store.appearance = earned
+            // Have the next video ready only if there's another theme to unlock.
+            if store.hasLockedAppearances { AdManager.shared.prepareRewarded() }
+        }
+        if !started { showsUnavailable = true }
     }
 }
 

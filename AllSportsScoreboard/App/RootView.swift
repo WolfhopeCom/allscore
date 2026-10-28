@@ -259,7 +259,11 @@ struct RootView: View {
     }
 
     private func launchPendingGame() {
-        guard let game = pending else { return }
+        guard let game = pending else {
+            // Setup was cancelled: a consent form held back while it was open can show now.
+            AdManager.shared.resumePendingConsent()
+            return
+        }
         pending = nil
         requestStart(game)
     }

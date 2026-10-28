@@ -78,6 +78,40 @@ struct Theme {
                 live: Color(hex: 0x248A3D),
                 glow: 0
             )
+        case .midnight:
+            return Theme(
+                appearance: appearance,
+                background: Color(hex: 0x050A16),
+                panel: Color(hex: 0x0C1426),
+                panelStroke: Color.white.opacity(0.08),
+                control: Color(hex: 0x162038),
+                controlStroke: Color.white.opacity(0.1),
+                primaryText: Color(hex: 0xEEF3FB),
+                secondaryText: Color(hex: 0x93A0B8),
+                tertiaryText: Color(hex: 0x56627A),
+                clock: Color(hex: 0x5CD0FF),
+                onClock: Color(hex: 0x001421),
+                alert: Color(hex: 0xFF5A52),
+                live: Color(hex: 0x34C759),
+                glow: 0.9
+            )
+        case .turf:
+            return Theme(
+                appearance: appearance,
+                background: Color(hex: 0x050D08),
+                panel: Color(hex: 0x0B1810),
+                panelStroke: Color.white.opacity(0.08),
+                control: Color(hex: 0x14261A),
+                controlStroke: Color.white.opacity(0.1),
+                primaryText: Color(hex: 0xF2F7F1),
+                secondaryText: Color(hex: 0x95A698),
+                tertiaryText: Color(hex: 0x58685B),
+                clock: Color(hex: 0xC8F03C),
+                onClock: Color(hex: 0x0D1400),
+                alert: Color(hex: 0xFF5A52),
+                live: Color(hex: 0x3DDC84),
+                glow: 0.8
+            )
         }
     }
 }

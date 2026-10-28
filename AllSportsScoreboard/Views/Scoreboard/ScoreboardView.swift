@@ -111,6 +111,7 @@ struct ScoreboardView: View {
                     session: session,
                     layout: .column,
                     isFullScreen: isFullScreen,
+                    scale: Self.boardScale(for: size),
                     onAdjust: { showClockSheet = true },
                     onExitFullScreen: { setFullScreen(false) }
                 )
@@ -124,10 +125,11 @@ struct ScoreboardView: View {
                     session: session,
                     layout: .row,
                     isFullScreen: isFullScreen,
+                    scale: Self.boardScale(for: size),
                     onAdjust: { showClockSheet = true },
                     onExitFullScreen: { setFullScreen(false) }
                 )
-                .frame(height: centerRowHeight)
+                .frame(height: centerRowHeight * Self.boardScale(for: size))
                 teamPanel(.b, compact: true)
             }
         }
@@ -158,6 +160,13 @@ struct ScoreboardView: View {
             }
             return 76 + extra
         }
+    }
+
+    /// 1 on every iPhone; up to 1.5 on an iPad, so the clock and center row grow with the
+    /// screen instead of sitting small between two huge score panels.
+    static func boardScale(for size: CGSize) -> CGFloat {
+        let shortSide = min(size.width, size.height)
+        return min(1.5, max(1, shortSide / 500))
     }
 
     private func setFullScreen(_ value: Bool) {

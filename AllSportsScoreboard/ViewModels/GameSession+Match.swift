@@ -449,8 +449,8 @@ extension GameSession {
             let lines = completedSetLines
             return lines.isEmpty ? nil : lines.joined(separator: ", ")
         case .baseball:
-            let hits = (0...1).map { state.counter("hits", TeamSide(rawValue: $0)!) }
-            let errors = (0...1).map { state.counter("errors", TeamSide(rawValue: $0)!) }
+            let hits = TeamSide.allCases.map { state.counter("hits", $0) }
+            let errors = TeamSide.allCases.map { state.counter("errors", $0) }
             return "Hits \(hits[0])–\(hits[1]) · Errors \(errors[0])–\(errors[1])"
         case .combat:
             return state.match.cards.isEmpty ? nil : "Decision · " + completedSetLines.joined(separator: ", ")

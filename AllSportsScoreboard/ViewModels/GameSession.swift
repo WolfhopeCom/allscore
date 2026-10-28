@@ -454,7 +454,7 @@ final class GameSession: Identifiable {
 
     func undo() {
         guard canUndo, let snapshot = state.undoStack.last else { return }
-        let before = (0...1).map { scoreText(TeamSide(rawValue: $0)!) }
+        let before = TeamSide.allCases.map { scoreText($0) }
         let flow = model.undoRestoresFlow
         // Undoing a score from an earlier period must not bring back that period's fouls.
         let keepCounters = model == .points && snapshot.period != nil && snapshot.period != state.period

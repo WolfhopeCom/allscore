@@ -26,6 +26,8 @@ final class AdManager {
     @ObservationIgnored private var interstitial: InterstitialAd?
     @ObservationIgnored private var isLoadingInterstitial = false
     @ObservationIgnored private let delegate = InterstitialDelegate()
+    @ObservationIgnored private var rewarded: RewardedAd?
+    @ObservationIgnored private var isLoadingRewarded = false
     @ObservationIgnored private let defaults = UserDefaults.standard
 
     private enum Key {
@@ -154,6 +156,37 @@ final class AdManager {
                 self.interstitial = ad
             }
         }
+    }
+
+    // MARK: Rewarded video (opt-in theme unlocks)
+
+    /// Loads a rewarded video if one isn't ready. Only called while a bonus theme is still
+    /// locked and the theme picker is on screen, so nobody else costs an ad request.
+    func prepareRewarded() {
+        guard showsAds, rewarded == nil, !isLoadingRewarded else { return }
+        isLoadingRewarded = true
+        RewardedAd.load(with: AdConfig.rewardedUnitID, request: GoogleMobileAds.Request()) { [weak self] ad, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.isLoadingRewarded = false
+                self.rewarded = ad
+            }
+        }
+    }
+
+    /// Plays the rewarded video the user explicitly asked to watch. `onReward` runs only if
+    /// they watched long enough to earn it. Returns false when no video is available.
+    @discardableResult
+    func presentRewarded(onReward: @escaping @MainActor () -> Void) -> Bool {
+        guard showsAds, let ad = rewarded, let root = UIApplication.topViewController else {
+            prepareRewarded()
+            return false
+        }
+        rewarded = nil
+        ad.present(from: root, userDidEarnRewardHandler: {
+            Task { @MainActor in onReward() }
+        })
+        return true
     }
 
     /// Lets users in consent regions change their choices (Settings → Ad Privacy Choices).

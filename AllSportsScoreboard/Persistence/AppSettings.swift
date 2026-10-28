@@ -5,6 +5,8 @@ enum AppAppearance: String, CaseIterable, Identifiable {
     case arena
     case blackout
     case daylight
+    case midnight
+    case turf
 
     var id: String { rawValue }
 
@@ -13,6 +15,8 @@ enum AppAppearance: String, CaseIterable, Identifiable {
         case .arena: return "Arena"
         case .blackout: return "Blackout"
         case .daylight: return "Daylight"
+        case .midnight: return "Midnight"
+        case .turf: return "Turf"
         }
     }
 
@@ -21,6 +25,16 @@ enum AppAppearance: String, CaseIterable, Identifiable {
         case .arena: return "Dark, with subtle glow"
         case .blackout: return "Pure black, ideal for OLED"
         case .daylight: return "High contrast for bright sun"
+        case .midnight: return "Deep navy with an ice-blue clock"
+        case .turf: return "Field green with a lime clock"
+        }
+    }
+
+    /// Bonus themes: unlocked for good by watching one rewarded video, or included with Remove Ads.
+    var isBonus: Bool {
+        switch self {
+        case .arena, .blackout, .daylight: return false
+        case .midnight, .turf: return true
         }
     }
 }
@@ -57,6 +71,10 @@ final class AppSettings {
     var appearance: AppAppearance {
         didSet { store.set(appearance.rawValue, forKey: Key.appearance) }
     }
+    /// Bonus themes unlocked with a rewarded video. Unlocks are permanent.
+    private(set) var unlockedAppearances: Set<AppAppearance> {
+        didSet { store.set(unlockedAppearances.map(\.rawValue).sorted(), forKey: Key.unlockedAppearances) }
+    }
 
     init(store: UserDefaults = .standard) {
         self.store = store
@@ -68,6 +86,21 @@ final class AppSettings {
         defaultSport = store.string(forKey: Key.defaultSport).flatMap(SportKind.init(rawValue:)) ?? .basketball
         keepScreenAwake = store.object(forKey: Key.keepScreenAwake) as? Bool ?? true
         appearance = store.string(forKey: Key.appearance).flatMap(AppAppearance.init(rawValue:)) ?? .arena
+        unlockedAppearances = Set((store.stringArray(forKey: Key.unlockedAppearances) ?? []).compactMap(AppAppearance.init(rawValue:)))
+    }
+
+    /// Free themes always; bonus themes once unlocked, or for Remove Ads owners.
+    func canUse(_ appearance: AppAppearance) -> Bool {
+        !appearance.isBonus || unlockedAppearances.contains(appearance) || PurchaseStore.shared.adsRemoved
+    }
+
+    func unlock(_ appearance: AppAppearance) {
+        unlockedAppearances.insert(appearance)
+    }
+
+    /// Some bonus theme can still be unlocked with a video.
+    var hasLockedAppearances: Bool {
+        AppAppearance.allCases.contains { !canUse($0) }
     }
 
     /// The setup last used for a sport (team names, period length, …), or factory defaults.
@@ -106,6 +139,7 @@ final class AppSettings {
         static let defaultSport = "settings.defaultSport"
         static let keepScreenAwake = "settings.keepScreenAwake"
         static let appearance = "settings.appearance"
+        static let unlockedAppearances = "settings.unlockedAppearances"
         static let playerDefaults = "settings.playerGameDefaults"
 
         static func gameDefaults(_ sport: SportKind) -> String {
