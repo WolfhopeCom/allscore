@@ -32,6 +32,8 @@ struct GameConfig: Codable, Equatable {
     var doubles: Bool
     /// Pickleball: every rally scores, instead of traditional side-out scoring.
     var rallyScoring: Bool
+    /// Darts only: players 3 and 4 (players 1 and 2 are teamA and teamB).
+    var extraPlayers: [TeamConfig] = []
 
     init(
         sport: SportKind,
@@ -91,6 +93,7 @@ struct GameConfig: Codable, Equatable {
         copy.customIncrement = min(max(copy.customIncrement, 1), 100)
         copy.pointsToWin = min(max(copy.pointsToWin, 1), 99)
         copy.restLength = min(max(copy.restLength, 0), 10 * 60)
+        copy.extraPlayers = sport == .darts ? Array(copy.extraPlayers.prefix(Self.maxExtraPlayers)) : []
         return copy
     }
 }
@@ -99,7 +102,7 @@ extension GameConfig {
     private enum CodingKeys: String, CodingKey {
         case sport, teamA, teamB, periodLength, periodCount, overtimeLength, clockEnabled
         case customTitle, customPeriodName, customIncrement, customClockDirection
-        case pointsToWin, restLength, doubles, rallyScoring
+        case pointsToWin, restLength, doubles, rallyScoring, extraPlayers
     }
 
     /// Tolerant decoding: fields added in later versions fall back to the sport's defaults,
@@ -125,6 +128,7 @@ extension GameConfig {
             doubles: try c.decodeIfPresent(Bool.self, forKey: .doubles) ?? base.doubles,
             rallyScoring: try c.decodeIfPresent(Bool.self, forKey: .rallyScoring) ?? base.rallyScoring
         )
+        extraPlayers = try c.decodeIfPresent([TeamConfig].self, forKey: .extraPlayers) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -144,5 +148,41 @@ extension GameConfig {
         try c.encode(restLength, forKey: .restLength)
         try c.encode(doubles, forKey: .doubles)
         try c.encode(rallyScoring, forKey: .rallyScoring)
+        if !extraPlayers.isEmpty { try c.encode(extraPlayers, forKey: .extraPlayers) }
+    }
+}
+
+// MARK: - Darts players (2–4)
+
+extension GameConfig {
+    static let maxExtraPlayers = 2
+    static let dartsPlayerRange = 2...4
+
+    /// Defaults for players 3 and 4.
+    static let extraPlayerDefaults = [
+        TeamConfig(name: "Player 3", color: .blue),
+        TeamConfig(name: "Player 4", color: .gold)
+    ]
+
+    /// Everyone in the game, in order. Two for every sport except darts.
+    var players: [TeamConfig] { [teamA, teamB] + extraPlayers }
+    var playerCount: Int { 2 + extraPlayers.count }
+
+    func playerName(_ index: Int) -> String {
+        if index < 2 { return teamName(TeamSide(rawValue: index) ?? .a) }
+        guard extraPlayers.indices.contains(index - 2) else { return "Player \(index + 1)" }
+        let trimmed = extraPlayers[index - 2].name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Player \(index + 1)" : trimmed
+    }
+
+    func playerColor(_ index: Int) -> TeamColor {
+        players.indices.contains(index) ? players[index].color : .silver
+    }
+
+    /// Darts: grow or shrink the line-up to `count` players.
+    mutating func setPlayerCount(_ count: Int) {
+        let extra = min(max(count, Self.dartsPlayerRange.lowerBound), Self.dartsPlayerRange.upperBound) - 2
+        while extraPlayers.count > extra { extraPlayers.removeLast() }
+        while extraPlayers.count < extra { extraPlayers.append(Self.extraPlayerDefaults[extraPlayers.count]) }
     }
 }

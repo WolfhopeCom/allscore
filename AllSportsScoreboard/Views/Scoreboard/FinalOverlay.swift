@@ -22,7 +22,9 @@ struct FinalOverlay: View {
                     .foregroundStyle(theme.clock)
 
                 Group {
-                    if let leader {
+                    if session.model == .cricket, let winner = session.cricketWinner {
+                        Text("\(session.cricketName(winner)) wins")
+                    } else if let leader {
                         Text("\(session.teamName(leader)) wins")
                     } else {
                         Text("It's a tie")
@@ -33,16 +35,20 @@ struct FinalOverlay: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
 
-                HStack(alignment: .top, spacing: 28) {
-                    finalScore(.a, isWinner: leader == .a)
-                    Text("–")
-                        .font(.score(48))
-                        .foregroundStyle(theme.tertiaryText)
-                        .padding(.top, 18)
-                    finalScore(.b, isWinner: leader == .b)
+                if session.model == .cricket {
+                    cricketStandings
+                } else {
+                    HStack(alignment: .top, spacing: 28) {
+                        finalScore(.a, isWinner: leader == .a)
+                        Text("–")
+                            .font(.score(48))
+                            .foregroundStyle(theme.tertiaryText)
+                            .padding(.top, 18)
+                        finalScore(.b, isWinner: leader == .b)
+                    }
                 }
 
-                if let summary = session.resultSummary {
+                if session.model != .cricket, let summary = session.resultSummary {
                     Text(summary)
                         .font(.system(size: 14, weight: .semibold).monospacedDigit())
                         .foregroundStyle(theme.secondaryText)
@@ -88,6 +94,34 @@ struct FinalOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
+    }
+
+    /// Darts: every player and how many numbers they closed.
+    private var cricketStandings: some View {
+        HStack(alignment: .top, spacing: 22) {
+            ForEach(session.cricketStandings, id: \.self) { player in
+                let isWinner = session.cricketWinner == player
+                VStack(spacing: 4) {
+                    HStack(spacing: 5) {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(theme.color(session.cricketColor(player)))
+                            .frame(width: 3, height: 13)
+                        Text(session.cricketName(player).uppercased())
+                            .font(.boardLabel(12))
+                            .tracking(1)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                    }
+                    .foregroundStyle(theme.secondaryText)
+                    Text("\(session.closedCount(player))")
+                        .font(.score(session.cricketPlayerCount > 2 ? 40 : 52))
+                        .foregroundStyle(isWinner ? theme.primaryText : theme.secondaryText)
+                }
+                .frame(maxWidth: 120)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(session.cricketName(player)), \(session.closedCount(player)) closed")
+            }
+        }
     }
 
     private func finalScore(_ side: TeamSide, isWinner: Bool) -> some View {

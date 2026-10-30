@@ -79,6 +79,9 @@ struct HomeView: View {
             return "Bucket Golf · \(config.players.count) player\(config.players.count == 1 ? "" : "s")"
         }
         let config = settings.gameDefaults(for: sport)
+        if sport == .darts {
+            return "Darts · \(config.playerCount) players"
+        }
         return "\(SportCatalog.rules(for: config).name) · \(config.teamName(.a)) vs \(config.teamName(.b))"
     }
 
@@ -186,8 +189,14 @@ private struct ResumeCard: View {
                     }
                 }
                 VStack(spacing: 6) {
-                    teamRow(.a)
-                    teamRow(.b)
+                    if session.model == .cricket {
+                        ForEach(0..<session.cricketPlayerCount, id: \.self) { player in
+                            row(name: session.cricketName(player), color: session.cricketColor(player), score: session.closedCount(player))
+                        }
+                    } else {
+                        teamRow(.a)
+                        teamRow(.b)
+                    }
                 }
                 HStack {
                     Text(session.phase == .final ? "View Final" : "Resume Game")
@@ -210,16 +219,20 @@ private struct ResumeCard: View {
     }
 
     private func teamRow(_ side: TeamSide) -> some View {
+        row(name: session.teamName(side), color: session.config[team: side].color, score: session.score(side))
+    }
+
+    private func row(name: String, color: TeamColor, score: Int) -> some View {
         HStack(spacing: 10) {
             RoundedRectangle(cornerRadius: 2)
-                .fill(theme.color(session.config[team: side].color))
+                .fill(theme.color(color))
                 .frame(width: 4, height: 22)
-            Text(session.teamName(side))
+            Text(name)
                 .font(.system(size: 19, weight: .semibold))
                 .foregroundStyle(theme.primaryText)
                 .lineLimit(1)
             Spacer()
-            Text("\(session.score(side))")
+            Text("\(score)")
                 .font(.score(30))
                 .foregroundStyle(theme.primaryText)
         }

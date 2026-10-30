@@ -42,6 +42,7 @@ final class GameRecord {
         finishedAt = Date()
         self.summary = summary ?? ""
         declaredWinnerRaw = state.declaredWinner?.rawValue ?? -1
+        applyDartsLineup(state)
     }
 
     func update(from state: GameState, summary: String?) {
@@ -61,6 +62,27 @@ final class GameRecord {
         finishedAt = Date()
         self.summary = summary ?? ""
         declaredWinnerRaw = state.declaredWinner?.rawValue ?? -1
+        applyDartsLineup(state)
+    }
+
+    /// Darts with 3 or 4 players: history shows the winner against the next best player.
+    private func applyDartsLineup(_ state: GameState) {
+        let marks = state.match.marks
+        guard state.config.sport == .darts, marks.count > 2 else { return }
+        let closed = marks.map { row in row.filter { $0 >= Cricket.marksToClose }.count }
+        let order = closed.indices.sorted { a, b in
+            if a == state.match.cricketWinner { return true }
+            if b == state.match.cricketWinner { return false }
+            return closed[a] != closed[b] ? closed[a] > closed[b] : a < b
+        }
+        let first = order[0], second = order[1]
+        teamAName = state.config.playerName(first)
+        teamBName = state.config.playerName(second)
+        teamAColorRaw = state.config.playerColor(first).rawValue
+        teamBColorRaw = state.config.playerColor(second).rawValue
+        scoreA = closed[first]
+        scoreB = closed[second]
+        declaredWinnerRaw = state.match.cricketWinner != nil ? 0 : -1
     }
 
     var sport: SportKind? { SportKind(rawValue: sportRaw) }

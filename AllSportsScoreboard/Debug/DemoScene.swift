@@ -71,10 +71,11 @@ enum DemoScene: String, CaseIterable {
         var config = SportCatalog.defaultConfig(for: .darts)
         config.teamA = TeamConfig(name: "Mike", color: .red)
         config.teamB = TeamConfig(name: "Jess", color: .green)
+        config.extraPlayers = [TeamConfig(name: "Sam", color: .blue), TeamConfig(name: "Ava", color: .gold)]
         var state = GameState(config: config)
         state.phase = .live
         // 20, 19, 18, 17, 16, 15, Bull
-        state.match.marks = [[3, 3, 3, 1, 0, 2, 1], [3, 2, 3, 3, 3, 0, 0]]
+        state.match.marks = [[3, 3, 3, 1, 0, 2, 1], [3, 2, 3, 3, 3, 0, 0], [3, 3, 1, 0, 2, 0, 0], [3, 1, 2, 3, 0, 1, 0]]
         state.scores = [3, 4]
         return state
     }

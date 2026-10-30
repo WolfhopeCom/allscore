@@ -458,7 +458,7 @@ extension GameSession {
             let innings = state.match.cards.count
             return "First to \(cornholeTarget) · \(innings) inning\(innings == 1 ? "" : "s")"
         case .cricket:
-            return "Cricket · numbers closed \(closedCount(.a))–\(closedCount(.b))"
+            return "Cricket · closed " + cricketStandings.map { "\(cricketName($0)) \(closedCount($0))" }.joined(separator: " · ")
         case .points:
             return nil
         }
@@ -539,12 +539,26 @@ extension GameSession {
 extension GameSession {
     /// The result as a short message: sport, score, how it ended, and where to get the app.
     var shareText: String {
+        if model == .cricket { return cricketShareText }
         var lines = ["\(rules.name) · \(statusText)"]
         lines.append("\(teamName(.a)) \(score(.a)) – \(score(.b)) \(teamName(.b))")
         if let winner = state.winner {
             lines.append("\(teamName(winner)) wins!")
         }
         if let summary = resultSummary { lines.append(summary) }
+        lines.append("")
+        lines.append("Kept with All-Sports Scoreboard: \(ShareResultButton.siteURL)")
+        return lines.joined(separator: "\n")
+    }
+}
+
+extension GameSession {
+    var cricketShareText: String {
+        var lines = ["Darts · Cricket · \(statusText)"]
+        for (place, player) in cricketStandings.enumerated() {
+            lines.append("\(place + 1). \(cricketName(player)) — \(closedCount(player)) of 7 closed")
+        }
+        if let winner = cricketWinner { lines.append("\(cricketName(winner)) wins!") }
         lines.append("")
         lines.append("Kept with All-Sports Scoreboard: \(ShareResultButton.siteURL)")
         return lines.joined(separator: "\n")

@@ -6,6 +6,7 @@ struct TeamsEditSheet: View {
 
     @State private var teamA: TeamConfig
     @State private var teamB: TeamConfig
+    @State private var extraPlayers: [TeamConfig]
     @Environment(\.dismiss) private var dismiss
     @Environment(\.theme) private var theme
 
@@ -13,20 +14,26 @@ struct TeamsEditSheet: View {
         self.session = session
         _teamA = State(initialValue: session.config.teamA)
         _teamB = State(initialValue: session.config.teamB)
+        _extraPlayers = State(initialValue: session.config.extraPlayers)
     }
+
+    private var isDarts: Bool { session.model == .cricket }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    TeamEditorRow(team: $teamA, placeholder: "Home")
-                    TeamEditorRow(team: $teamB, placeholder: "Away")
+                    TeamEditorRow(team: $teamA, placeholder: isDarts ? "Player 1" : "Home")
+                    TeamEditorRow(team: $teamB, placeholder: isDarts ? "Player 2" : "Away")
+                    ForEach(extraPlayers.indices, id: \.self) { index in
+                        TeamEditorRow(team: $extraPlayers[index], placeholder: "Player \(index + 3)")
+                    }
                 }
                 .listRowBackground(theme.panel)
             }
             .scrollContentBackground(.hidden)
             .background(theme.background.ignoresSafeArea())
-            .navigationTitle("Teams")
+            .navigationTitle(isDarts ? "Players" : "Teams")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -34,7 +41,7 @@ struct TeamsEditSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        session.updateTeams(teamA, teamB)
+                        session.updateTeams(teamA, teamB, extraPlayers: extraPlayers)
                         Feedback.shared.play(.tap)
                         dismiss()
                     }

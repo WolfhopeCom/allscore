@@ -736,6 +736,7 @@ final class GameSession: Identifiable {
             let expired = s.clock.direction == .countDown && s.clock.hasLimit && s.clock.isExpired(at: date)
             s.phase = expired ? .periodBreak : .live
             s.declaredWinner = nil
+            s.match.cricketWinner = nil
             s.resultNote = nil
         }
         environment.feedback(.tap)
@@ -752,10 +753,13 @@ final class GameSession: Identifiable {
         environment.feedback(.periodChange)
     }
 
-    func updateTeams(_ teamA: TeamConfig, _ teamB: TeamConfig) {
+    func updateTeams(_ teamA: TeamConfig, _ teamB: TeamConfig, extraPlayers: [TeamConfig]? = nil) {
         update { s in
             s.config.teamA = teamA
             s.config.teamB = teamB
+            if let extraPlayers, extraPlayers.count == s.config.extraPlayers.count {
+                s.config.extraPlayers = extraPlayers
+            }
         }
     }
 

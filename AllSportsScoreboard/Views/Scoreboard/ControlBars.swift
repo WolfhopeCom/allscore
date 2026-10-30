@@ -46,7 +46,7 @@ struct ScoreboardTopBar: View {
 
             Menu {
                 Section {
-                    Button("Edit Teams", systemImage: "pencil", action: onEditTeams)
+                    Button(session.model == .cricket ? "Edit Players" : "Edit Teams", systemImage: "pencil", action: onEditTeams)
                     if session.canSwapSides {
                         Button("Swap Sides", systemImage: "arrow.left.arrow.right", action: onSwapSides)
                     }

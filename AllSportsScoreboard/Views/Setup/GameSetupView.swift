@@ -17,13 +17,35 @@ struct GameSetupView: View {
         let rules = SportCatalog.rules(for: config)
         NavigationStack {
             Form {
-                Section {
-                    TeamEditorRow(team: $config.teamA, placeholder: "Home")
-                    TeamEditorRow(team: $config.teamB, placeholder: "Away")
-                } header: {
-                    Text("Teams")
+                if config.sport == .darts {
+                    Section {
+                        Picker("Players", selection: Binding(
+                            get: { config.playerCount },
+                            set: { config.setPlayerCount($0) }
+                        )) {
+                            ForEach(Array(GameConfig.dartsPlayerRange), id: \.self) { count in
+                                Text("\(count)").tag(count)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        TeamEditorRow(team: $config.teamA, placeholder: "Player 1")
+                        TeamEditorRow(team: $config.teamB, placeholder: "Player 2")
+                        ForEach(config.extraPlayers.indices, id: \.self) { index in
+                            TeamEditorRow(team: $config.extraPlayers[index], placeholder: "Player \(index + 3)")
+                        }
+                    } header: {
+                        Text("Players")
+                    }
+                    .listRowBackground(theme.panel)
+                } else {
+                    Section {
+                        TeamEditorRow(team: $config.teamA, placeholder: "Home")
+                        TeamEditorRow(team: $config.teamB, placeholder: "Away")
+                    } header: {
+                        Text("Teams")
+                    }
+                    .listRowBackground(theme.panel)
                 }
-                .listRowBackground(theme.panel)
 
                 GameRulesSection(config: $config)
             }
@@ -137,7 +159,7 @@ struct GameRulesSection: View {
             } header: {
                 Text("Cricket")
             } footer: {
-                Text("Tap a number in a team's column for each hit. Three hits close it. The first team to close 20 down to 15 and the bull wins.")
+                Text("Tap a number in a player's column for each hit: / then X then ⓧ. Three hits close it. The first to close 20 down to 15 and the bull wins.")
             }
             .listRowBackground(theme.panel)
 

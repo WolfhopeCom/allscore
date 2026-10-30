@@ -44,8 +44,14 @@ struct MatchState: Codable, Equatable {
     var lineScore: [[Int]] = [[], []]
 
     // Darts cricket
-    /// Marks (0–3) per side for 20, 19, 18, 17, 16, 15 and the bull.
-    var marks: [[Int]] = [Array(repeating: 0, count: 7), Array(repeating: 0, count: 7)]
+    /// Marks (0–3) per player (2–4) for 20, 19, 18, 17, 16, 15 and the bull.
+    var marks: [[Int]] = MatchState.blankMarks(2)
+    /// The player (0–3) who closed everything first.
+    var cricketWinner: Int?
+
+    static func blankMarks(_ players: Int) -> [[Int]] {
+        Array(repeating: Array(repeating: 0, count: 7), count: players)
+    }
 
     // Boxing / MMA
     var cards: [RoundCard] = []
@@ -65,7 +71,8 @@ struct MatchState: Codable, Equatable {
         for index in cards.indices {
             cards[index].points.reverse()
         }
-        marks.reverse()
+        if marks.count >= 2 { marks.swapAt(0, 1) }
+        if let winner = cricketWinner, winner < 2 { cricketWinner = 1 - winner }
     }
 }
 
@@ -126,7 +133,10 @@ struct GameState: Codable, Equatable {
         case .baseball:
             possession = .a
             match.lineScore = [[0], [0]]
-        case .points, .combat, .cancellation, .cricket:
+        case .cricket:
+            possession = nil
+            match.marks = MatchState.blankMarks(config.playerCount)
+        case .points, .combat, .cancellation:
             possession = nil
         }
     }
@@ -261,7 +271,7 @@ extension MatchState {
     private enum CodingKeys: String, CodingKey {
         case points, games, sets, setFirstServer, serverNumber, inTiebreak, tiebreakFirstServer
         case isBottom, outs, balls, strikes, lineScore, cards, resting, restCued
-        case marks
+        case marks, cricketWinner
     }
 
     /// Tolerant decoding: fields added later fall back to their defaults.
@@ -284,9 +294,11 @@ extension MatchState {
         resting = try c.decodeIfPresent(Bool.self, forKey: .resting) ?? resting
         restCued = try c.decodeIfPresent(Bool.self, forKey: .restCued) ?? restCued
         marks = try c.decodeIfPresent([[Int]].self, forKey: .marks) ?? marks
-        if marks.count != 2 || marks.contains(where: { $0.count != 7 }) {
-            marks = [Array(repeating: 0, count: 7), Array(repeating: 0, count: 7)]
+        if !(2...4).contains(marks.count) || marks.contains(where: { $0.count != 7 }) {
+            marks = MatchState.blankMarks(2)
         }
+        cricketWinner = try c.decodeIfPresent(Int.self, forKey: .cricketWinner)
+        if let winner = cricketWinner, !marks.indices.contains(winner) { cricketWinner = nil }
         if points.count != 2 { points = [0, 0] }
         if games.count != 2 { games = [0, 0] }
         if lineScore.count != 2 { lineScore = [[], []] }
@@ -310,5 +322,6 @@ extension MatchState {
         try c.encode(resting, forKey: .resting)
         try c.encode(restCued, forKey: .restCued)
         try c.encode(marks, forKey: .marks)
+        try c.encodeIfPresent(cricketWinner, forKey: .cricketWinner)
     }
 }
