@@ -15,6 +15,8 @@ struct PlayerBoardView: View {
     var body: some View {
         GeometryReader { geometry in
             let landscape = geometry.size.width > geometry.size.height
+            // Two cards across when sideways or on a wide screen (iPad).
+            let twoUp = landscape || geometry.size.width >= 700
             ZStack {
                 theme.background.ignoresSafeArea()
                 VStack(spacing: 10) {
@@ -24,7 +26,7 @@ struct PlayerBoardView: View {
                     }
                     LeaderboardStrip(session: session)
                     ScrollView {
-                        LazyVGrid(columns: columns(landscape: landscape), spacing: 12) {
+                        LazyVGrid(columns: columns(twoUp: twoUp), spacing: 12) {
                             ForEach(0..<session.state.playerCount, id: \.self) { player in
                                 PlayerHoleCard(session: session, player: player)
                             }
@@ -69,8 +71,8 @@ struct PlayerBoardView: View {
         }
     }
 
-    private func columns(landscape: Bool) -> [GridItem] {
-        landscape
+    private func columns(twoUp: Bool) -> [GridItem] {
+        twoUp
             ? [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
             : [GridItem(.flexible())]
     }

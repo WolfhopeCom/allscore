@@ -76,7 +76,7 @@ jobs:
               FILE="shots/$DEVICE-$N-$NAME.png"
               xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
               xcrun simctl launch "$UDID" "$BUNDLE" -screenshot "$KEY"
-              sleep 14
+              sleep 16
               xcrun simctl io "$UDID" screenshot "$FILE"
               # A shot still on the dark launch screen is tiny; wait and retake (up to 3 times).
               for TRY in 1 2 3; do
