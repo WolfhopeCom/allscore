@@ -46,10 +46,12 @@ jobs:
         env:
           MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          # "scenes=key:name,key:name" in the commit message captures just those, on iPhone.
+          # "scenes=key:name,key:name" in the commit message captures just those, on iPhone
+          # ("devices=iphone,ipad" adds iPad).
           CUSTOM=$(printf '%s' "$MESSAGE" | grep -o 'scenes=[A-Za-z0-9,:-]*' | head -1 | cut -d= -f2)
+          PICKED=$(printf '%s' "$MESSAGE" | grep -o 'devices=[a-z,]*' | head -1 | cut -d= -f2 | tr ',' ' ')
           if [ -n "$CUSTOM" ]; then
-            SCENES=$(echo "$CUSTOM" | tr ',' ' '); DEVICES="iphone"
+            SCENES=$(echo "$CUSTOM" | tr ',' ' '); DEVICES="${PICKED:-iphone}"
           else
             SCENES="basketball:scoreboard home:sports settings:settings bucketGolf:bucket-golf final:final"; DEVICES="iphone ipad"
           fi
