@@ -1,0 +1,1 @@
+scenes=bucketGolf:bucket-golf devices=ipad
