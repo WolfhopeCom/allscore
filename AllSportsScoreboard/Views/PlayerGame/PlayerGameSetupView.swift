@@ -35,7 +35,7 @@ struct PlayerGameSetupView: View {
                 } header: {
                     Text("Players · \(config.players.count)")
                 } footer: {
-                    Text("This is the tee order for hole 1. After that, the best score on the last hole tees off first. Swipe a player to remove them.")
+                    Text("Each player gets a scorecard. Swipe a player to remove them.")
                 }
                 .listRowBackground(theme.panel)
 
@@ -53,10 +53,9 @@ struct PlayerGameSetupView: View {
                 .listRowBackground(theme.panel)
 
                 Section {
-                    ruleRow("Miss", "Every swing is 1 stroke. Hitting only the flagstick is a miss.")
-                    ruleRow("Hit Bucket", "Any contact with the outside of the bucket completes the hole.")
-                    ruleRow("In the Bucket", "Chip it in and the hole score gets a 1-stroke bonus: 3 swings = 2.")
-                    ruleRow("Hazard", "Water or bushes: the swing plus 1 penalty stroke. Drop no closer to the bucket.")
+                    ruleRow("Strokes", "Every swing counts 1. The hole ends when the ball touches the bucket.")
+                    ruleRow("In the Bucket (−1)", "Chip it in and take 1 off the hole: 3 swings = 2.")
+                    ruleRow("Hazard (+1)", "Water or bushes add 1 penalty stroke. Drop no closer to the bucket.")
                 } header: {
                     Text("Scoring")
                 } footer: {

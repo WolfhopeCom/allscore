@@ -261,7 +261,7 @@ private struct PlayerResumeCard: View {
                     }
                 }
                 HStack {
-                    Text(session.phase == .final ? "View Final" : "Resume Game · \(session.currentName) is up")
+                    Text(session.phase == .final ? "View Final" : "Resume Game · Hole \(session.hole)")
                         .font(.system(size: 15, weight: .semibold))
                         .lineLimit(1)
                     Spacer()
@@ -276,7 +276,7 @@ private struct PlayerResumeCard: View {
         }
         .buttonStyle(PressableStyle(scale: 0.98))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Current Bucket Golf game. \(session.statusText). \(session.currentName) is up.")
+        .accessibilityLabel("Current Bucket Golf game. \(session.statusText).")
         .accessibilityAddTraits(.isButton)
     }
 }

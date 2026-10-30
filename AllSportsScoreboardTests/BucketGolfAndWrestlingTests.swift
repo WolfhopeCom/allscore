@@ -10,126 +10,124 @@ final class BucketGolfTests: XCTestCase {
         return PlayerGameSession(state: PlayerGameState(config: config), environment: .silent)
     }
 
-    // The two worked examples from the rules.
+    // Scored like the official scorecard: swings, In the Bucket (−1), Hazard (+1).
 
-    func testThreeShotsEndingOnTheBucketIsPar() {
+    func testThreeSwingsIsPar() {
         let session = makeSession()
-        session.record(.miss)
-        session.record(.miss)
-        session.record(.contact)
-        let card = session.state.card(0)
+        session.adjustSwings(0, by: 3)
+        let card = session.holeScore(0)
         XCTAssertTrue(card.isFinished)
         XCTAssertEqual(card.strokes, 3)
-        XCTAssertEqual(GolfTerm.name(strokes: card.strokes), "Par")
+        XCTAssertEqual(session.holeTerm(0), "Par")
         XCTAssertEqual(session.parText(0), "E")
     }
 
-    func testThreeShotsEndingInTheBucketIsOneUnder() {
+    func testInTheBucketTakesOneOff() {
         let session = makeSession()
-        session.record(.miss)
-        session.record(.miss)
-        session.record(.bucketIn)
-        XCTAssertEqual(session.state.card(0).strokes, 2)
+        session.adjustSwings(0, by: 3)
+        session.toggleBucket(0)
+        XCTAssertEqual(session.holeScore(0).strokes, 2)
+        XCTAssertEqual(session.holeTerm(0), "Birdie")
         XCTAssertEqual(session.parText(0), "−1")
-        XCTAssertEqual(GolfTerm.name(strokes: 2), "Birdie")
+        session.toggleBucket(0)
+        XCTAssertEqual(session.holeScore(0).strokes, 3)
     }
 
-    func testHazardAddsAPenaltyAndPlayContinues() {
+    func testBucketWithNoSwingsCountsTheSwing() {
         let session = makeSession()
-        session.record(.hazard)
-        XCTAssertFalse(session.currentCard.isFinished, "Drop and keep playing")
-        XCTAssertEqual(session.currentCard.strokes, 2, "The swing plus one penalty stroke")
-        session.record(.contact)
-        XCTAssertEqual(session.state.card(0).strokes, 3)
+        session.toggleBucket(0)
+        XCTAssertEqual(session.holeScore(0).swings, 1)
+        XCTAssertEqual(session.holeScore(0).strokes, 0)
+        XCTAssertEqual(session.holeTerm(0), "Hole in Zero")
     }
 
-    func testMissesKeepTheHoleOpen() {
+    func testHazardsAddAStrokeEach() {
         let session = makeSession()
-        for _ in 0..<5 { session.record(.miss) }
-        XCTAssertFalse(session.currentCard.isFinished)
-        XCTAssertEqual(session.currentCard.strokes, 5)
-        XCTAssertEqual(session.state.total(0), 5, "Running total includes the hole in progress")
+        session.adjustSwings(0, by: 2)
+        session.adjustHazards(0, by: 2)
+        XCTAssertEqual(session.holeScore(0).strokes, 4)
+        session.adjustHazards(0, by: -1)
+        XCTAssertEqual(session.holeScore(0).strokes, 3)
     }
 
-    func testNoShotsAfterTheHoleIsComplete() {
-        let session = makeSession(players: 1)
-        session.record(.contact)
-        session.record(.miss)
-        XCTAssertEqual(session.state.card(0).strokes, 1)
+    func testZeroSwingsClearsTheHole() {
+        let session = makeSession()
+        session.adjustSwings(0, by: 2)
+        session.toggleBucket(0)
+        session.adjustHazards(0, by: 1)
+        session.adjustSwings(0, by: -2)
+        let card = session.holeScore(0)
+        XCTAssertFalse(card.isFinished)
+        XCTAssertFalse(card.inBucket)
+        XCTAssertEqual(card.hazards, 0)
+        XCTAssertNil(session.holeTerm(0))
+        XCTAssertEqual(session.holeScore(0).swings, 0)
     }
 
-    func testFinishingHandsTheTurnToTheNextPlayer() {
+    func testSwingsStayInRange() {
+        let session = makeSession()
+        session.adjustSwings(0, by: -1)
+        XCTAssertEqual(session.holeScore(0).swings, 0)
+        for _ in 0..<40 { session.adjustSwings(0, by: 1) }
+        XCTAssertEqual(session.holeScore(0).swings, PlayerGameSession.maxSwings)
+    }
+
+    func testAnyPlayerCanBeScoredInAnyOrder() {
         let session = makeSession(players: 3)
-        session.record(.contact)
-        XCTAssertEqual(session.current, 1)
-        XCTAssertEqual(session.primaryTitle, "Next: Player 3")
+        session.adjustSwings(2, by: 4)
+        session.adjustSwings(0, by: 1)
+        XCTAssertEqual(session.holeScore(2).strokes, 4)
+        XCTAssertEqual(session.holeScore(0).strokes, 1)
+        XCTAssertFalse(session.holeScore(1).isFinished)
     }
 
-    func testHonorsBestScoreTeesOffNextHole() {
-        let session = makeSession(players: 3)
-        session.record(.miss); session.record(.miss); session.record(.contact)   // P1: 3
-        session.record(.contact)                                                 // P2: 1
-        session.record(.miss); session.record(.contact)                          // P3: 2
-        XCTAssertTrue(session.isHoleComplete)
-        XCTAssertEqual(session.primaryTitle, "Next Hole: 2")
-        session.advance()
+    func testPrevAndNextMoveBetweenHoles() {
+        let session = makeSession(holes: 3)
+        XCTAssertEqual(session.nextTitle, "Next Hole")
+        session.previousHole()
+        XCTAssertEqual(session.hole, 1, "Already on the first hole")
+        session.adjustSwings(0, by: 3)
+        session.nextHole()
         XCTAssertEqual(session.hole, 2)
-        XCTAssertEqual(session.state.teeOrder, [1, 2, 0])
-        XCTAssertEqual(session.current, 1, "Lowest score on the last hole tees off first")
+        XCTAssertFalse(session.holeScore(0).isFinished, "A new hole starts blank")
+        session.previousHole()
+        XCTAssertEqual(session.holeScore(0).strokes, 3, "Earlier holes keep their scores")
+        session.nextHole(); session.nextHole()
+        XCTAssertEqual(session.hole, 3)
+        XCTAssertEqual(session.nextTitle, "Finish Round")
     }
 
     func testLowestTotalWinsAfterTheCourse() {
         let session = makeSession(players: 2, holes: 3)
-        // On each hole whoever tees off first makes par (3) and the other chips in (2).
-        // Honors alternate, so Player 1 shoots 3-2-3 = 8 and Player 2 shoots 2-3-2 = 7.
         for _ in 0..<3 {
-            session.record(.miss); session.record(.miss); session.record(.contact)
-            session.record(.miss); session.record(.miss); session.record(.bucketIn)
-            session.advance()
+            session.adjustSwings(0, by: 3)                 // par
+            session.adjustSwings(1, by: 3)
+            session.toggleBucket(1)                        // birdie
+            session.nextHole()
         }
         XCTAssertEqual(session.phase, .final)
-        XCTAssertEqual(session.state.total(0), 8)
-        XCTAssertEqual(session.state.total(1), 7)
+        XCTAssertEqual(session.state.total(0), 9)
+        XCTAssertEqual(session.state.total(1), 6)
         XCTAssertEqual(session.winnerNames, ["Player 2"], "Lowest total wins")
-        XCTAssertEqual(session.parText(1), "−2")
+        XCTAssertEqual(session.parText(1), "−3")
     }
 
-    func testUndoRemovesTheLastShot() {
+    func testUndoRemovesTheLastChange() {
         let session = makeSession()
-        session.record(.miss)
-        session.record(.contact)
-        XCTAssertEqual(session.current, 1)
+        session.adjustSwings(0, by: 2)
+        session.adjustHazards(0, by: 1)
         session.undo()
-        XCTAssertEqual(session.current, 0)
-        XCTAssertEqual(session.currentCard.shots, [.miss])
+        XCTAssertEqual(session.holeScore(0).hazards, 0)
+        XCTAssertEqual(session.holeScore(0).swings, 2)
     }
 
-    func testSelectingAPlayerForFarthestFromTheBucket() {
-        let session = makeSession(players: 3)
-        session.record(.miss)
-        session.select(player: 2)
-        session.record(.miss)
-        XCTAssertEqual(session.state.card(2).strokes, 1)
-        XCTAssertEqual(session.state.card(0).strokes, 1)
-    }
-
-    func testHoleOptionsAndSanitizing() {
-        var config = PlayerGameConfig.standard
-        config.players = []
-        config.holes = 7
-        let state = PlayerGameState(config: config)
-        XCTAssertEqual(state.playerCount, 1)
-        XCTAssertTrue(PlayerGameConfig.holeOptions.contains(state.config.holes))
-        XCTAssertEqual(PlayerGameConfig.holeOptions, [3, 6, 9, 18])
-    }
-
-    func testStateRoundTripsThroughJSON() throws {
-        let session = makeSession()
-        session.record(.hazard)
-        session.record(.bucketIn)
-        let data = try JSONEncoder().encode(session.state)
-        let restored = try JSONDecoder().decode(PlayerGameState.self, from: data)
-        XCTAssertEqual(restored, session.state)
+    func testOldShotListsStillLoad() throws {
+        let json = #"{"shots":["miss","hazard","bucketIn"]}"#.data(using: .utf8)!
+        let card = try JSONDecoder().decode(HoleCard.self, from: json)
+        XCTAssertEqual(card.swings, 3)
+        XCTAssertEqual(card.hazards, 1)
+        XCTAssertTrue(card.inBucket)
+        XCTAssertEqual(card.strokes, 3)
     }
 }
 

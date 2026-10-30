@@ -124,23 +124,23 @@ enum DemoScene: String, CaseIterable {
         ]
         config.holes = 9
         let session = PlayerGameSession(state: PlayerGameState(config: config))
-        // Shots per player (by index) for the first two holes; the tee order changes every
-        // hole (best score on the last hole goes first), so play follows whoever is up.
-        let finishedHoles: [[Int: [ShotKind]]] = [
-            [0: [.miss, .contact], 1: [.miss, .miss, .contact], 2: [.miss, .miss, .bucketIn], 3: [.miss, .hazard, .contact]],
-            [0: [.miss, .miss, .contact], 1: [.miss, .contact], 2: [.miss, .miss, .contact], 3: [.miss, .miss, .miss, .contact]]
+        // (swings, in the bucket, hazards) per player for the first two holes.
+        let holes: [[(Int, Bool, Int)]] = [
+            [(2, false, 0), (3, false, 0), (3, true, 0), (2, false, 1)],
+            [(3, false, 0), (2, false, 0), (3, false, 0), (4, false, 0)]
         ]
-        for hole in finishedHoles {
-            for _ in hole {
-                let player = session.state.current
-                for shot in hole[player] ?? [.contact] { session.record(shot) }
-                session.advance()
-            }
+        func enter(_ player: Int, _ score: (Int, Bool, Int)) {
+            session.adjustSwings(player, by: score.0)
+            if score.1 { session.toggleBucket(player) }
+            if score.2 > 0 { session.adjustHazards(player, by: score.2) }
         }
-        // Hole 3 under way: the first player is done, the second has two swings in.
-        for shot in [ShotKind.miss, .contact] { session.record(shot) }
-        session.advance()
-        for shot in [ShotKind.miss, .hazard] { session.record(shot) }
+        for hole in holes {
+            for (player, score) in hole.enumerated() { enter(player, score) }
+            session.nextHole()
+        }
+        // Hole 3 under way: two players have scores in.
+        enter(0, (2, true, 0))
+        enter(1, (3, false, 1))
         return session
     }
 }

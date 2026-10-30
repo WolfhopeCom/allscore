@@ -19,9 +19,9 @@ struct PlayerSessionEnvironment {
     }
 }
 
-/// Engine for BucketGolf stroke play. Every swing is recorded for the player who's up;
-/// touching the bucket ends their hole, a chip into the bucket takes a stroke off, a hazard
-/// adds a penalty stroke. Lowest total after the course wins.
+/// Engine for BucketGolf stroke play, scored like the official scorecard: for each player on
+/// each hole enter swings, In the Bucket (−1) and hazards (+1 each). Move between holes
+/// freely; lowest total after the course wins.
 @Observable
 @MainActor
 final class PlayerGameSession: Identifiable {
@@ -46,22 +46,18 @@ final class PlayerGameSession: Identifiable {
 
     var config: PlayerGameConfig { state.config }
     var phase: GamePhase { state.phase }
-    var current: Int { state.current }
     var hole: Int { state.hole }
-    var currentName: String { config.playerName(state.current) }
-    var currentCard: HoleCard { state.card(state.current) }
     var canUndo: Bool { !state.undoStack.isEmpty && state.phase != .final }
     var isLastHole: Bool { state.hole >= config.holes }
     var isHoleComplete: Bool { state.isHoleComplete }
 
     var isInProgress: Bool {
-        state.phase == .live || (state.phase == .pregame && state.cards.joined().contains { !$0.shots.isEmpty })
+        state.phase == .live || (state.phase == .pregame && state.cards.joined().contains { $0.isFinished })
     }
 
     var statusText: String {
         switch state.phase {
-        case .pregame: return "Ready · \(config.holes) Holes"
-        case .live, .periodBreak: return "Hole \(state.hole) of \(config.holes) · Par 3"
+        case .pregame, .live, .periodBreak: return "Hole \(state.hole) of \(config.holes) · Par 3"
         case .final: return "Final"
         }
     }
@@ -69,28 +65,21 @@ final class PlayerGameSession: Identifiable {
     var statusTone: StatusTone {
         switch state.phase {
         case .pregame: return .idle
-        case .live, .periodBreak: return isHoleComplete ? .intermission : .live
+        case .live, .periodBreak: return .live
         case .final: return .final
         }
     }
 
-    /// The big button: next player on this hole, then the next hole, then finish.
-    var primaryTitle: String {
-        if state.phase == .final { return "New Game" }
-        if isHoleComplete { return isLastHole ? "Finish Game" : "Next Hole: \(state.hole + 1)" }
-        if let next = state.nextUnfinished(after: state.current), next != state.current {
-            return "Next: \(config.playerName(next))"
-        }
-        return "Up: \(currentName)"
-    }
+    /// The bottom button: next hole, or finish on the last one.
+    var nextTitle: String { isLastHole ? "Finish Round" : "Next Hole" }
 
-    var primarySymbol: String {
-        if state.phase == .final { return "arrow.counterclockwise" }
-        if isHoleComplete { return isLastHole ? "flag.checkered" : "flag.fill" }
-        return "forward.fill"
-    }
+    /// This hole's score for a player, and its golf name ("Birdie", "Hole in One").
+    func holeScore(_ player: Int) -> HoleCard { state.card(player) }
 
-    var primaryIsReady: Bool { isHoleComplete || currentCard.isFinished }
+    func holeTerm(_ player: Int) -> String? {
+        let card = state.card(player)
+        return card.isFinished ? GolfTerm.name(strokes: card.strokes) : nil
+    }
 
     /// Total against par, e.g. "+2", "E", "−1".
     func parText(_ player: Int) -> String { GolfTerm.relative(state.relativeToPar(player)) }
@@ -115,100 +104,98 @@ final class PlayerGameSession: Identifiable {
         state.standings.map { "\(config.playerName($0)) \(state.total($0)) (\(parText($0)))" }.joined(separator: " · ")
     }
 
-    // MARK: - Recording shots
+    // MARK: - Scoring the current hole
 
-    func record(_ shot: ShotKind) {
-        guard state.phase != .final else { return }
-        guard !currentCard.isFinished else {
+    static let maxSwings = 15
+    static let maxHazards = 9
+
+    /// Swings for a player on this hole (the stepper).
+    func adjustSwings(_ player: Int, by delta: Int) {
+        guard state.phase != .final, state.cards.indices.contains(player) else { return }
+        let current = state.card(player)
+        let next = min(max(current.swings + delta, 0), Self.maxSwings)
+        guard next != current.swings else {
             environment.feedback(.denied)
             return
         }
+        edit(player) { card in
+            card.swings = next
+            // No swings means no hole yet: clear the extras too.
+            if next == 0 {
+                card.inBucket = false
+                card.hazards = 0
+            }
+        }
+        environment.feedback(.tap)
+    }
+
+    /// In the Bucket (−1). Turning it on with no swings entered counts the swing that went in.
+    func toggleBucket(_ player: Int) {
+        guard state.phase != .final, state.cards.indices.contains(player) else { return }
+        let turningOn = !state.card(player).inBucket
+        edit(player) { card in
+            card.inBucket = turningOn
+            if turningOn { card.swings = max(card.swings, 1) }
+        }
+        if turningOn {
+            showFlash("IN THE BUCKET −1", positive: true)
+            environment.feedback(.score(3))
+        } else {
+            environment.feedback(.tap)
+        }
+    }
+
+    /// Hazards (+1 each). A hazard means at least one swing was taken.
+    func adjustHazards(_ player: Int, by delta: Int) {
+        guard state.phase != .final, state.cards.indices.contains(player) else { return }
+        let current = state.card(player)
+        let next = min(max(current.hazards + delta, 0), Self.maxHazards)
+        guard next != current.hazards else {
+            environment.feedback(.denied)
+            return
+        }
+        edit(player) { card in
+            card.hazards = next
+            if next > 0 { card.swings = max(card.swings, 1) }
+        }
+        environment.feedback(.tap)
+    }
+
+    func previousHole() {
+        guard state.phase != .final, state.hole > 1 else { return }
+        update { $0.hole -= 1 }
+        environment.feedback(.periodChange)
+    }
+
+    /// Next hole, or finish the round on the last one.
+    func nextHole() {
+        guard state.phase != .final else { return }
+        if isLastHole {
+            finishRound()
+            return
+        }
+        update { s in
+            s.hole += 1
+            if s.phase == .pregame { s.phase = .live }
+        }
+        environment.feedback(.periodChange)
+    }
+
+    func finishRound() {
+        guard state.phase != .final else { return }
+        update { $0.phase = .final }
+        environment.feedback(.gameEnd)
+        environment.recordResult(state, standingsSummary)
+    }
+
+    private func edit(_ player: Int, _ change: (inout HoleCard) -> Void) {
         let limit = undoLimit
-        let player = state.current
-        var finished = false
         update { s in
             Self.pushUndo(&s, limit: limit)
             if s.phase == .pregame { s.phase = .live }
-            s.cards[player][s.hole - 1].shots.append(shot)
-            if shot.finishesHole {
-                finished = true
-                // Hand the turn to the next player still playing this hole.
-                if let next = s.nextUnfinished(after: player) { s.current = next }
-            }
+            change(&s.cards[player][s.hole - 1])
         }
         bump += 1
-
-        let card = state.card(player)
-        switch shot {
-        case .miss:
-            showFlash("+1", positive: false)
-            environment.feedback(.tap)
-        case .hazard:
-            showFlash("+1 PENALTY", positive: false)
-            environment.feedback(.warning)
-        case .contact:
-            showFlash(GolfTerm.name(strokes: card.strokes).uppercased(), positive: true)
-            environment.feedback(.score(1))
-        case .bucketIn:
-            showFlash("IN! −1", positive: true)
-            environment.feedback(.score(3))
-        }
-        if finished && state.isHoleComplete {
-            environment.feedback(.periodEnd)
-        }
-    }
-
-    /// Big button: next player on this hole, or the next hole once everyone is done.
-    func advance() {
-        switch state.phase {
-        case .final:
-            rematch()
-        default:
-            if isHoleComplete {
-                nextHole()
-            } else if let next = state.nextUnfinished(after: state.current), next != state.current {
-                select(player: next)
-            }
-        }
-    }
-
-    func nextHole() {
-        guard state.phase != .final, isHoleComplete else { return }
-        let limit = undoLimit
-        var gameOver = false
-        update { s in
-            Self.pushUndo(&s, limit: limit)
-            if s.hole >= s.config.holes {
-                s.phase = .final
-                gameOver = true
-            } else {
-                // Honors: best score on the hole just played tees off first; ties keep the order.
-                let played = s.hole
-                let before = s
-                let honors = before.teeOrder.enumerated().sorted { lhs, rhs in
-                    let a = before.card(lhs.element, hole: played).strokes
-                    let b = before.card(rhs.element, hole: played).strokes
-                    return a != b ? a < b : lhs.offset < rhs.offset
-                }
-                s.teeOrder = honors.map { $0.element }
-                s.hole += 1
-                s.current = s.teeOrder.first ?? 0
-                s.phase = .live
-            }
-        }
-        if gameOver {
-            environment.feedback(.gameEnd)
-            environment.recordResult(state, standingsSummary)
-        } else {
-            environment.feedback(.periodChange)
-        }
-    }
-
-    /// Records shots for a different player (after the tee shots, farthest from the bucket plays).
-    func select(player index: Int) {
-        guard state.phase != .final, index != state.current, (0..<state.playerCount).contains(index) else { return }
-        update { $0.current = index }
-        environment.feedback(.possession)
     }
 
     func undo() {
@@ -221,12 +208,7 @@ final class PlayerGameSession: Identifiable {
         environment.feedback(.undo)
     }
 
-    func endGame() {
-        guard state.phase != .final else { return }
-        update { $0.phase = .final }
-        environment.feedback(.gameEnd)
-        environment.recordResult(state, standingsSummary)
-    }
+    func endGame() { finishRound() }
 
     func reopen() {
         guard state.phase == .final else { return }

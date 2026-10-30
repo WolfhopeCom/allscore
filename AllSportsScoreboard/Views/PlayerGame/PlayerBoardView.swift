@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// BucketGolf: the player who's up fills most of the screen with four big shot buttons
-/// (miss, hazard, hit bucket, in the bucket) so the phone can sit beside the bucket.
+/// BucketGolf, scored like the official scorecard: one card per player for the hole being
+/// played, with Strokes, In the Bucket (−1) and Hazard (+1). Prev and Next move between holes.
 struct PlayerBoardView: View {
     let session: PlayerGameSession
     let onExit: () -> Void
@@ -17,22 +17,22 @@ struct PlayerBoardView: View {
             let landscape = geometry.size.width > geometry.size.height
             ZStack {
                 theme.background.ignoresSafeArea()
-                VStack(spacing: 12) {
-                    topBar
-                    if landscape {
-                        HStack(spacing: 12) {
-                            CurrentPlayerPanel(session: session, compact: false)
-                            StandingsPanel(session: session)
-                                .frame(width: max(260, geometry.size.width * 0.36))
-                        }
-                    } else {
-                        VStack(spacing: 12) {
-                            CurrentPlayerPanel(session: session, compact: true)
-                            StandingsPanel(session: session)
-                                .frame(height: min(geometry.size.height * 0.32, CGFloat(60 + 44 * session.state.playerCount)))
-                        }
+                VStack(spacing: 10) {
+                    topBar(showsHole: landscape)
+                    if !landscape {
+                        holeHeader
                     }
-                    controls
+                    LeaderboardStrip(session: session)
+                    ScrollView {
+                        LazyVGrid(columns: columns(landscape: landscape), spacing: 12) {
+                            ForEach(0..<session.state.playerCount, id: \.self) { player in
+                                PlayerHoleCard(session: session, player: player)
+                            }
+                        }
+                        .padding(.bottom, 4)
+                    }
+                    .scrollIndicators(.hidden)
+                    bottomBar
                 }
                 .padding(.horizontal, landscape ? 12 : 14)
                 .padding(.top, 4)
@@ -69,7 +69,29 @@ struct PlayerBoardView: View {
         }
     }
 
-    private var topBar: some View {
+    private func columns(landscape: Bool) -> [GridItem] {
+        landscape
+            ? [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+            : [GridItem(.flexible())]
+    }
+
+    /// "Hole 3 of 9" and "Par 3", big, as on a printed scorecard.
+    private var holeHeader: some View {
+        VStack(spacing: 2) {
+            Text("Hole \(session.hole) of \(session.config.holes)")
+                .font(.system(size: 30, weight: .bold))
+                .foregroundStyle(theme.primaryText)
+                .contentTransition(.numericText())
+            Text("Par \(PlayerGameConfig.par) · Stroke Play")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(theme.clock)
+        }
+        .frame(maxWidth: .infinity)
+        .animation(.snappy(duration: 0.25), value: session.hole)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func topBar(showsHole: Bool) -> some View {
         HStack(spacing: 8) {
             Button(action: leave) {
                 Image(systemName: "chevron.left")
@@ -114,38 +136,52 @@ struct PlayerBoardView: View {
         }
         .frame(height: 44)
         .overlay {
-            StatusPill(text: session.statusText, tone: session.statusTone)
-                .frame(maxWidth: 240)
+            if showsHole {
+                StatusPill(text: session.statusText, tone: session.statusTone)
+                    .frame(maxWidth: 260)
+            }
         }
     }
 
-    private var controls: some View {
+    private var bottomBar: some View {
         HStack(spacing: 10) {
-            BarIconButton(symbol: "arrow.uturn.backward", label: "Undo last shot", isEnabled: session.canUndo) {
+            BarIconButton(symbol: "arrow.uturn.backward", label: "Undo", isEnabled: session.canUndo) {
                 session.undo()
             }
             Button {
-                session.advance()
+                session.previousHole()
             } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: session.primarySymbol)
-                        .font(.system(size: 18, weight: .bold))
-                    Text(session.primaryTitle.uppercased())
+                Label("Prev", systemImage: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
+                    .frame(width: 104, height: 58)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.control))
+            }
+            .buttonStyle(PressableStyle(scale: 0.97))
+            .disabled(session.hole <= 1)
+            .opacity(session.hole <= 1 ? 0.4 : 1)
+            .accessibilityLabel("Previous hole")
+
+            Button {
+                session.nextHole()
+            } label: {
+                HStack(spacing: 8) {
+                    Text(session.nextTitle.uppercased())
                         .font(.boardLabel(17))
                         .tracking(1.2)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
+                    Image(systemName: session.isLastHole ? "flag.checkered" : "chevron.right")
+                        .font(.system(size: 17, weight: .bold))
                 }
                 .foregroundStyle(theme.onClock)
                 .frame(maxWidth: .infinity)
                 .frame(height: 58)
                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.clock))
-                .shadow(color: theme.clock.opacity((session.primaryIsReady ? 0.6 : 0.3) * theme.glow), radius: session.primaryIsReady ? 20 : 12)
-                .scaleEffect(session.primaryIsReady ? 1.02 : 1)
-                .animation(.spring(duration: 0.35, bounce: 0.4), value: session.primaryIsReady)
+                .shadow(color: theme.clock.opacity(0.4 * theme.glow), radius: 14)
             }
             .buttonStyle(PressableStyle(scale: 0.97))
-            .accessibilityLabel(session.primaryTitle)
+            .accessibilityLabel(session.nextTitle)
         }
         .frame(height: 58)
     }
@@ -156,268 +192,177 @@ struct PlayerBoardView: View {
     }
 }
 
-/// The player who's up: this hole's strokes, the shot trail, total, and the four shot buttons.
-private struct CurrentPlayerPanel: View {
+/// Everyone's running total, best first.
+private struct LeaderboardStrip: View {
     let session: PlayerGameSession
-    let compact: Bool
-
     @Environment(\.theme) private var theme
-
-    private struct Pulse {
-        var scale: Double = 1
-    }
 
     var body: some View {
         let state = session.state
-        let index = state.current
-        let card = session.currentCard
-        let color = theme.color(session.config.color(index))
-        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-
-        VStack(spacing: compact ? 8 : 12) {
-            HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 4, height: 28)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(card.isFinished ? "HOLE DONE" : "UP NOW")
-                        .font(.boardLabel(10))
-                        .tracking(2)
-                        .foregroundStyle(card.isFinished ? theme.clock : theme.secondaryText)
-                    Text(session.currentName.uppercased())
-                        .font(.boardLabel(compact ? 22 : 26))
-                        .tracking(1.4)
-                        .foregroundStyle(theme.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                }
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text("TOTAL")
-                        .font(.boardLabel(10))
-                        .tracking(2)
-                        .foregroundStyle(theme.secondaryText)
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(session.totalText(index))
-                            .font(.score(compact ? 26 : 30))
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                Text("LEADERBOARD")
+                    .font(.boardLabel(11))
+                    .tracking(1.8)
+                    .foregroundStyle(theme.clock)
+                    .padding(.trailing, 4)
+                ForEach(Array(state.standings.enumerated()), id: \.element) { rank, player in
+                    HStack(spacing: 6) {
+                        Text("\(rank + 1)")
+                            .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(theme.tertiaryText)
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(theme.color(session.config.color(player)))
+                            .frame(width: 3, height: 14)
+                        Text(session.config.playerName(player))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                            .lineLimit(1)
+                        Text(session.totalText(player))
+                            .font(.system(size: 17, weight: .bold).monospacedDigit())
                             .foregroundStyle(theme.primaryText)
                             .contentTransition(.numericText())
-                        Text(session.parText(index))
-                            .font(.system(size: 15, weight: .bold).monospacedDigit())
-                            .foregroundStyle(theme.clock)
+                        Text(session.parText(player))
+                            .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(theme.secondaryText)
                     }
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Total \(session.totalText(index)), \(session.parText(index)) to par")
-            }
-
-            GeometryReader { geometry in
-                let text = "\(card.strokes)"
-                VStack(spacing: 4) {
-                    Text("HOLE \(state.hole) · PAR \(PlayerGameConfig.par)")
-                        .font(.boardLabel(11))
-                        .tracking(2)
-                        .foregroundStyle(theme.secondaryText)
-                    Text(text)
-                        .font(.score(min(geometry.size.height * 0.62, geometry.size.width / (CGFloat(max(2, text.count)) * 0.64))))
-                        .foregroundStyle(theme.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.4)
-                        .contentTransition(.numericText())
-                        .animation(.snappy(duration: 0.28), value: text)
-                        .keyframeAnimator(initialValue: Pulse(), trigger: session.bump) { content, pulse in
-                            content.scaleEffect(pulse.scale)
-                        } keyframes: { _ in
-                            KeyframeTrack(\.scale) {
-                                SpringKeyframe(1.08, duration: 0.11, spring: .snappy)
-                                SpringKeyframe(1.0, duration: 0.4, spring: .bouncy)
-                            }
-                        }
-                    Text(trail(card))
-                        .font(.system(size: compact ? 12 : 13, weight: .semibold))
-                        .foregroundStyle(card.isFinished ? theme.clock : theme.tertiaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height)
-            }
-            .overlay(alignment: .topTrailing) {
-                if let flash = session.flash {
-                    Text(flash.text)
-                        .font(.system(size: compact ? 20 : 24, weight: .heavy).monospacedDigit())
-                        .foregroundStyle(flash.isPositive ? color : theme.secondaryText)
-                        .transition(.scale(scale: 0.6).combined(with: .opacity))
-                        .id(flash.id)
+                    .padding(.horizontal, 10)
+                    .frame(height: 34)
+                    .background(Capsule().fill(theme.panel))
+                    .overlay(Capsule().strokeBorder(theme.panelStroke))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(rank + 1). \(session.config.playerName(player)), \(session.totalText(player)), \(session.parText(player)) to par")
                 }
             }
-            .animation(.spring(duration: 0.3, bounce: 0.35), value: session.flash)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(session.currentName), hole \(state.hole), par 3")
-            .accessibilityValue("\(card.strokes) strokes. \(trail(card))")
-
-            shotButtons(color: color, disabled: card.isFinished || session.phase == .final)
-
-            Text("Flagstick only, with no bucket contact? Tap Miss.")
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(theme.tertiaryText)
-                .frame(maxWidth: .infinity)
         }
-        .padding(compact ? 12 : 16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            ZStack(alignment: .top) {
-                shape.fill(theme.panel)
-                LinearGradient(colors: [color.opacity(0.14 * theme.glow), .clear], startPoint: .top, endPoint: .center)
-                Rectangle().fill(color).frame(height: 3)
-            }
-            .clipShape(shape)
-        )
-        .overlay(shape.strokeBorder(theme.panelStroke))
-        .animation(.snappy(duration: 0.3), value: index)
-    }
-
-    /// "Miss · Hazard · In the bucket — Birdie"
-    private func trail(_ card: HoleCard) -> String {
-        if card.shots.isEmpty { return "On the tee" }
-        let shots = card.shots.map(\.shortName).joined(separator: " · ")
-        if card.isFinished { return "\(shots) — \(GolfTerm.name(strokes: card.strokes))" }
-        return shots
-    }
-
-    private func shotButtons(color: Color, disabled: Bool) -> some View {
-        let height: CGFloat = compact ? 58 : 66
-        return LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-            shotButton("MISS", detail: "+1 stroke", shot: .miss, tint: color, prominent: false, height: height)
-            shotButton("HAZARD", detail: "+1 penalty stroke", shot: .hazard, tint: color, prominent: false, height: height)
-            shotButton("HIT BUCKET", detail: "Hole complete", shot: .contact, tint: color, prominent: true, height: height)
-            shotButton("IN THE BUCKET", detail: "−1 stroke bonus", shot: .bucketIn, tint: theme.clock, prominent: true, height: height)
-        }
-        .disabled(disabled)
-        .opacity(disabled ? 0.45 : 1)
-    }
-
-    private func shotButton(_ title: String, detail: String, shot: ShotKind, tint: Color, prominent: Bool, height: CGFloat) -> some View {
-        Button {
-            session.record(shot)
-        } label: {
-            VStack(spacing: 2) {
-                Text(title)
-                    .font(.boardLabel(compact ? 15 : 17))
-                    .tracking(0.8)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Text(detail.uppercased())
-                    .font(.boardLabel(9.5))
-                    .tracking(0.5)
-                    .opacity(0.8)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .padding(.horizontal, 6)
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-        }
-        .buttonStyle(ScoreButtonStyle(tint: tint, prominent: prominent))
-        .accessibilityLabel("\(title.capitalized), \(detail)")
+        .scrollIndicators(.hidden)
+        .frame(height: 34)
+        .animation(.snappy(duration: 0.3), value: state.standings)
     }
 }
 
-/// Everyone's scorecard so far. Tap a row to record that player's shots.
-private struct StandingsPanel: View {
+/// One player's card for the current hole: score, Strokes, In the Bucket, Hazard.
+private struct PlayerHoleCard: View {
     let session: PlayerGameSession
+    let player: Int
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let state = session.state
-        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-        let leaders = Set(state.leaders)
-        let anyShots = state.cards.joined().contains { !$0.shots.isEmpty }
+        let card = session.holeScore(player)
+        let color = theme.color(session.config.color(player))
+        let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
+        let disabled = session.phase == .final
 
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("LEADERBOARD")
-                    .font(.boardLabel(11))
-                    .tracking(2)
-                    .foregroundStyle(theme.secondaryText)
-                Spacer()
-                Text("LOW SCORE WINS · PAR \(session.config.coursePar)")
-                    .font(.boardLabel(9.5))
-                    .tracking(1)
-                    .foregroundStyle(theme.tertiaryText)
+        VStack(spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(color)
+                    .frame(width: 4, height: 24)
+                Text(session.config.playerName(player))
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Spacer(minLength: 8)
+                scoreBox(card)
             }
-            ScrollView {
-                VStack(spacing: 4) {
-                    ForEach(Array(state.standings.enumerated()), id: \.element) { rank, index in
-                        row(rank: rank, index: index, isLeader: anyShots && leaders.contains(index))
-                    }
-                }
+
+            row(symbol: "figure.golf", title: "Strokes") {
+                stepper(value: card.swings, label: "Strokes", disabled: disabled,
+                        minus: { session.adjustSwings(player, by: -1) },
+                        plus: { session.adjustSwings(player, by: 1) })
             }
-            .scrollBounceBehavior(.basedOnSize)
+            row(symbol: "flag", title: "In the Bucket (−1)") {
+                Toggle("In the Bucket", isOn: Binding(
+                    get: { card.inBucket },
+                    set: { if $0 != card.inBucket { session.toggleBucket(player) } }
+                ))
+                .labelsHidden()
+                .tint(theme.clock)
+                .disabled(disabled)
+            }
+            row(symbol: "exclamationmark.triangle", title: "Hazard (+1)") {
+                stepper(value: card.hazards, label: "Hazards", disabled: disabled,
+                        minus: { session.adjustHazards(player, by: -1) },
+                        plus: { session.adjustHazards(player, by: 1) })
+            }
         }
-        .padding(12)
+        .padding(16)
         .background(shape.fill(theme.panel))
         .overlay(shape.strokeBorder(theme.panelStroke))
-        .animation(.snappy(duration: 0.35), value: state.standings)
     }
 
-    private func row(rank: Int, index: Int, isLeader: Bool) -> some View {
-        let state = session.state
-        let isUp = index == state.current && state.phase != .final
-        let card = state.card(index)
-        let holeText = card.shots.isEmpty ? "–" : "\(card.strokes)\(card.isFinished ? " ✓" : "")"
-        return Button {
-            session.select(player: index)
-        } label: {
-            HStack(spacing: 10) {
-                Text("\(rank + 1)")
-                    .font(.system(size: 13, weight: .bold).monospacedDigit())
-                    .foregroundStyle(theme.tertiaryText)
-                    .frame(width: 16)
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(theme.color(session.config.color(index)))
-                    .frame(width: 3, height: 20)
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 4) {
-                        Text(session.config.playerName(index))
-                            .font(.system(size: 16, weight: isUp ? .bold : .medium))
-                            .foregroundStyle(theme.primaryText)
-                            .lineLimit(1)
-                        if isLeader {
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(theme.clock)
-                                .accessibilityLabel("Leading")
-                        }
-                    }
-                    Text("THRU \(state.holesFinished(index)) · HOLE \(holeText)")
-                        .font(.boardLabel(9.5))
-                        .tracking(0.6)
-                        .foregroundStyle(theme.tertiaryText)
-                }
-                Spacer(minLength: 4)
-                Text(session.parText(index))
-                    .font(.system(size: 14, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(theme.secondaryText)
-                    .frame(minWidth: 26, alignment: .trailing)
-                Text(session.totalText(index))
-                    .font(.system(size: 20, weight: .bold).monospacedDigit())
-                    .foregroundStyle(theme.primaryText)
-                    .contentTransition(.numericText())
-                    .frame(minWidth: 28, alignment: .trailing)
+    private func scoreBox(_ card: HoleCard) -> some View {
+        VStack(spacing: 0) {
+            Text("SCORE")
+                .font(.boardLabel(10))
+                .tracking(1.6)
+                .foregroundStyle(theme.secondaryText)
+            Text(card.isFinished ? "\(card.strokes)" : "–")
+                .font(.score(30))
+                .foregroundStyle(theme.primaryText)
+                .contentTransition(.numericText())
+            if let term = session.holeTerm(player) {
+                Text(term.uppercased())
+                    .font(.boardLabel(9))
+                    .tracking(1)
+                    .foregroundStyle(theme.clock)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
-            .padding(.horizontal, 10)
-            .frame(height: 44)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isUp ? theme.clock.opacity(0.14) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(isUp ? theme.clock.opacity(0.5) : Color.clear)
-            )
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(session.config.playerName(index)), total \(session.totalText(index)), \(session.parText(index)) to par, thru \(state.holesFinished(index))\(isUp ? ", up now" : "")")
-        .accessibilityHint("Record this player's shots")
+        .frame(width: 92, height: 72)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.control))
+        .animation(.snappy(duration: 0.2), value: card)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(card.isFinished ? "Hole score \(card.strokes)\(session.holeTerm(player).map { ", \($0)" } ?? "")" : "No score yet")
+    }
+
+    private func row<Control: View>(symbol: String, title: String, @ViewBuilder control: () -> Control) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 16))
+                .foregroundStyle(theme.secondaryText)
+                .frame(width: 24)
+            Text(title)
+                .font(.system(size: 17))
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: 8)
+            control()
+        }
+        .frame(minHeight: 48)
+    }
+
+    private func stepper(value: Int, label: String, disabled: Bool, minus: @escaping () -> Void, plus: @escaping () -> Void) -> some View {
+        HStack(spacing: 0) {
+            Button(action: minus) {
+                Image(systemName: "minus")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 48, height: 48)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Fewer \(label.lowercased())")
+            Text("\(value)")
+                .font(.system(size: 22, weight: .bold).monospacedDigit())
+                .frame(minWidth: 36)
+                .contentTransition(.numericText())
+                .accessibilityLabel("\(label): \(value)")
+            Button(action: plus) {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 48, height: 48)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("More \(label.lowercased())")
+        }
+        .foregroundStyle(theme.primaryText)
+        .buttonStyle(PressableStyle(scale: 0.9))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.control))
+        .disabled(disabled)
+        .opacity(disabled ? 0.5 : 1)
+        .animation(.snappy(duration: 0.2), value: value)
     }
 }
 

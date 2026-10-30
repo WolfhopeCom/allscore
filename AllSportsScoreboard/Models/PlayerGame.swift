@@ -1,48 +1,49 @@
 import Foundation
 
-/// What happened on one swing in BucketGolf.
-enum ShotKind: String, Codable, CaseIterable {
-    /// The ball didn't touch the bucket (hitting only the flagstick counts as a miss).
-    case miss
-    /// Ball into a hazard (water, bushes): the swing plus a 1-stroke penalty. Play continues
-    /// after a drop no closer to the bucket.
-    case hazard
-    /// The ball hit the outside of the bucket: the hole is complete.
-    case contact
-    /// The ball was chipped into the bucket: the hole is complete with a 1-stroke bonus.
-    case bucketIn
-
-    var finishesHole: Bool { self == .contact || self == .bucketIn }
-
-    /// Strokes this shot adds to the hole score.
-    var strokes: Int {
-        switch self {
-        case .miss, .contact: return 1
-        case .hazard: return 2
-        case .bucketIn: return 0   // the swing (+1) and the bucket-in bonus (−1)
-        }
-    }
-
-    var shortName: String {
-        switch self {
-        case .miss: return "Miss"
-        case .hazard: return "Hazard"
-        case .contact: return "Bucket"
-        case .bucketIn: return "In"
-        }
-    }
-}
-
-/// One player's shots on one hole.
+/// One player's card on one hole, entered like the official BucketGolf scorecard: swings,
+/// whether the last one went in the bucket, and hazards.
 struct HoleCard: Codable, Equatable {
-    var shots: [ShotKind] = []
+    /// Every swing is a stroke.
+    var swings = 0
+    /// A chip into the bucket takes one stroke off.
+    var inBucket = false
+    /// Each hazard (water, bushes) adds a penalty stroke.
+    var hazards = 0
 
-    var isFinished: Bool { shots.last?.finishesHole ?? false }
-    var swings: Int { shots.count }
-    var penalties: Int { shots.filter { $0 == .hazard }.count }
-    var bonus: Int { shots.contains(.bucketIn) ? 1 : 0 }
-    /// Every swing is a stroke, hazards add a penalty stroke, a bucket-in takes one off.
-    var strokes: Int { swings + penalties - bonus }
+    init(swings: Int = 0, inBucket: Bool = false, hazards: Int = 0) {
+        self.swings = swings
+        self.inBucket = inBucket
+        self.hazards = hazards
+    }
+
+    /// A hole counts once at least one swing is entered.
+    var isFinished: Bool { swings > 0 }
+    /// The hole score: swings + hazards − 1 for in the bucket.
+    var strokes: Int { isFinished ? max(0, swings + hazards - (inBucket ? 1 : 0)) : 0 }
+
+    private enum CodingKeys: String, CodingKey {
+        case swings, inBucket, hazards, shots
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        swings = try c.decodeIfPresent(Int.self, forKey: .swings) ?? 0
+        inBucket = try c.decodeIfPresent(Bool.self, forKey: .inBucket) ?? false
+        hazards = try c.decodeIfPresent(Int.self, forKey: .hazards) ?? 0
+        // Rounds saved by version 1.0/1.1 stored each shot (miss, hazard, contact, bucketIn).
+        if let shots = try c.decodeIfPresent([String].self, forKey: .shots), !shots.isEmpty, swings == 0 {
+            swings = shots.count
+            hazards = shots.filter { $0 == "hazard" }.count
+            inBucket = shots.contains("bucketIn")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(swings, forKey: .swings)
+        try c.encode(inBucket, forKey: .inBucket)
+        try c.encode(hazards, forKey: .hazards)
+    }
 }
 
 struct PlayerConfig: Codable, Equatable, Identifiable {
@@ -157,17 +158,6 @@ struct PlayerGameState: Codable, Equatable {
         (0..<playerCount).allSatisfy { card($0).isFinished }
     }
 
-    /// The next player in tee order who hasn't finished this hole, after `player`.
-    func nextUnfinished(after player: Int) -> Int? {
-        guard let start = teeOrder.firstIndex(of: player) else { return teeOrder.first { !card($0).isFinished } }
-        for step in 1...max(1, teeOrder.count) {
-            let candidate = teeOrder[(start + step) % teeOrder.count]
-            if !card(candidate).isFinished { return candidate }
-        }
-        return nil
-    }
-
-    /// Lowest total first; ties keep setup order.
     /// Best first. Mid-round, players can have finished different numbers of holes, so like a
     /// golf leaderboard this ranks by score to par on finished holes; once everyone has played
     /// every hole that is the same as lowest total.
@@ -246,8 +236,8 @@ extension PlayerGameState {
 enum GolfTerm {
     static func name(strokes: Int, par: Int = PlayerGameConfig.par) -> String {
         switch strokes - par {
-        case ...(-3): return "Albatross"
-        case -2: return "Eagle"
+        case ...(-3): return "Hole in Zero"
+        case -2: return "Hole in One"
         case -1: return "Birdie"
         case 0: return "Par"
         case 1: return "Bogey"

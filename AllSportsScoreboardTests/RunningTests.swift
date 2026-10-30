@@ -22,14 +22,14 @@ final class RunningTests: XCTestCase {
         var config = PlayerGameConfig.standard
         config.holes = 18
         let session = PlayerGameSession(state: PlayerGameState(config: config), environment: .silent)
-        for _ in 0..<50 { session.record(.miss) }
+        for _ in 0..<25 { session.adjustSwings(0, by: 1); session.adjustSwings(0, by: -1) }
         XCTAssertGreaterThan(session.state.undoStack.count, PlayerGameState.savedUndoSteps)
 
         let data = try JSONEncoder().encode(session.state)
         let restored = try JSONDecoder().decode(PlayerGameState.self, from: data)
         XCTAssertEqual(restored.undoStack.count, PlayerGameState.savedUndoSteps)
         XCTAssertEqual(restored.cards, session.state.cards)
-        XCTAssertEqual(restored.current, session.state.current)
+        XCTAssertEqual(restored.hole, session.state.hole)
     }
 
     func testGolfRoundSurvivesMissingFields() throws {
