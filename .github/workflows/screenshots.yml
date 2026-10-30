@@ -63,13 +63,16 @@ jobs:
             xcrun simctl status_bar "$UDID" override --time 9:41 --batteryLevel 100 --batteryState charged \
               --cellularMode active --cellularBars 4 --wifiBars 3 --dataNetwork wifi
             xcrun simctl install "$UDID" "$APP"
+            # Warm-up: the first launch after install is slow, so it isn't one we capture.
+            xcrun simctl launch "$UDID" "$BUNDLE" -screenshot home || true
+            sleep 20
             N=0
             for SCENE in $SCENES; do
               N=$((N+1)); KEY=${SCENE%%:*}; NAME=${SCENE##*:}
               FILE="shots/$DEVICE-$N-$NAME.png"
               xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
               xcrun simctl launch "$UDID" "$BUNDLE" -screenshot "$KEY"
-              sleep 10
+              sleep 14
               xcrun simctl io "$UDID" screenshot "$FILE"
               # simctl captures the portrait framebuffer; turn landscape scenes the right way up.
               # (iPad windows stay portrait, so only iPhone shots need turning.)
