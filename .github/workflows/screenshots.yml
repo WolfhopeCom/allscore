@@ -55,6 +55,8 @@ jobs:
           else
             SCENES="basketball:scoreboard home:sports settings:settings bucketGolf:bucket-golf final:final"; DEVICES="iphone ipad"
           fi
+          echo "Scenes: $SCENES | Devices: $DEVICES"
+          mkdir -p shots && echo "scenes=$SCENES devices=$DEVICES" > shots/run.txt
           APP=build/Build/Products/Debug-iphonesimulator/AllSportsScoreboard.app
           BUNDLE=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
           mkdir -p shots
@@ -76,6 +78,12 @@ jobs:
               xcrun simctl launch "$UDID" "$BUNDLE" -screenshot "$KEY"
               sleep 14
               xcrun simctl io "$UDID" screenshot "$FILE"
+              # A shot still on the dark launch screen is tiny; wait and retake (up to 3 times).
+              for TRY in 1 2 3; do
+                [ "$(stat -f%z "$FILE")" -gt 150000 ] && break
+                echo "Retaking $FILE (try $TRY)"; sleep 10
+                xcrun simctl io "$UDID" screenshot "$FILE"
+              done
               # simctl captures the portrait framebuffer; turn landscape scenes the right way up.
               # (iPad windows stay portrait, so only iPhone shots need turning.)
               if [ "$DEVICE" = iphone ]; then
